@@ -11,11 +11,10 @@ ticket-execution harness.
 
 ## Status
 
-**Phase 1** (this repo, done): scan a repo, detect/initialize `.ai/`, record evidence.
-**Phase 2** (not built yet): fold evidence into polished docs, ingest pre-existing/legacy `.ai/`
-content, drift detection. See [`.ai/docs/project-context.md`](.ai/docs/project-context.md) for
-the full picture and [`.ai/evidence/onboarding/`](.ai/evidence/onboarding/) for the design record
-this was built from.
+**Phase 1 + Phase 2 done**: scan a repo, detect/initialize `.ai/`, record evidence, ingest
+pre-existing/legacy `.ai/` content, fold evidence into polished docs, detect drift. See
+[`.ai/docs/project-context.md`](.ai/docs/project-context.md) for the full picture and
+[`.ai/evidence/onboarding/`](.ai/evidence/onboarding/) for the design record this was built from.
 
 ## Why documentation lives in two places
 
@@ -80,9 +79,17 @@ directly from a Claude Code session opened here. Once published to npm, `command
 | `get_setup_status` | Reads back the manifest: last scan/synthesis time, pending evidence counts, `needs_resync`. |
 | `scan_project` | Read-only repo scan (manifest files, CI config, infra signals, existing docs) plus a list of open questions only a human can answer. Requires `.ai/` to be initialized first. |
 | `record_evidence` | Appends an immutable evidence entry (`new-rule` / `correction` / `clarification` / `raw-note`). A `correction` sets `needs_resync`. Requires `.ai/` to be initialized first. |
+| `propose_ai_dir_migration` | Read-only. If `.ai/` is non-conformant, lists every file found under it with size — no auto-classification. |
+| `apply_ai_dir_migration` | Ingests a non-conformant `.ai/`'s content as legacy evidence (`source: "legacy-doc"`), then scaffolds normally. Requires `confirm: true`; originals are kept unless `remove_originals` is set. |
+| `list_evidence` | Reads back evidence entries (unsynthesized by default) for the calling agent to review before writing docs/context. |
+| `write_doc` | Commits agent-authored markdown to `.ai/docs/<path>`. Marks any referenced evidence synthesized and recomputes the manifest's pending counters. |
+| `write_context_chunk` | Same, to `.ai/context/<path>`, plus a `.meta.json` sidecar (title/area/risk) so a harness can retrieve chunks selectively by area. |
+| `check_drift` | Compares the manifest's `last_scan_sha` to current git HEAD; returns changed files if stale. Separate concern from `needs_resync` (evidence staleness). |
 
-Typical call order: `detect_ai_dir` → `init_ai_scaffold` → `scan_project` → `record_evidence` (as
-needed) → `get_setup_status`.
+Typical call order: `detect_ai_dir` → (`init_ai_scaffold` or, if non-conformant,
+`propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as
+needed) → `list_evidence` → `write_doc` / `write_context_chunk` → `get_setup_status` /
+`check_drift`.
 
 ## Relationship to `ai-intake-mcp`
 
@@ -98,5 +105,6 @@ calling `record_evidence` during implementation — is tracked as future work, n
 
 - `npm run build` — builds both packages (`tsc`).
 - `npm run clean` — removes `dist/` in both packages.
-- No test suite yet; verification so far has been a manual smoke-test script exercising all five
-  tools against a scratch repo (absent → init → conformant → scan → record evidence → status).
+- No test suite yet; verification so far has been manual smoke-test scripts exercising all eleven
+  tools against scratch repos (Phase 1: absent → init → conformant → scan → record evidence →
+  status; Phase 2: legacy migration, evidence → synthesis → status, and drift detection).

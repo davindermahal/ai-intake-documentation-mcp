@@ -28,8 +28,17 @@ The MCP server itself (stdio transport, `@modelcontextprotocol/server` v2). Each
 `{ name, description, inputSchema, handler }` object under `src/tools/`, registered in
 `src/index.ts`. Tool call order encodes the actual dependency graph:
 
-`detect_ai_dir` → `init_ai_scaffold` (refuses on non-conformant) → `scan_project` /
-`record_evidence` (both require an initialized manifest) → `get_setup_status` (reads it back).
+`detect_ai_dir` → `init_ai_scaffold` (refuses on non-conformant; non-conformant instead goes
+`propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` / `record_evidence` (both
+require an initialized manifest) → `list_evidence` → `write_doc` / `write_context_chunk` →
+`get_setup_status` / `check_drift` (both read the manifest back).
+
+`src/git.ts` holds `currentGitSha`/`changedFilesSince` (used by `scan_project` and `check_drift`;
+`execFileSync` with an argv array, not shell-interpolated strings, since `changedFilesSince`'s sha
+argument ultimately comes from a JSON file on disk). `src/synthesis.ts` holds the bookkeeping
+shared by `write_doc`/`write_context_chunk`: record the path in `doc_index`, mark any referenced
+evidence synthesized, and recompute the manifest's pending counters from actual unsynthesized
+evidence rather than incrementing/decrementing by hand.
 
 ## `.ai/` directory schema
 
@@ -45,13 +54,35 @@ The MCP server itself (stdio transport, `@modelcontextprotocol/server` v2). Each
     onboarding/*.json       # human/legacy evidence not tied to a ticket
     tickets/*.json           # evidence recorded during ai-intake-mcp ticket work
   docs/                     # human-readable — narrative, rationale, diagrams
-  context/                  # agent-facing — distilled, chunked by area (Phase 2)
+  context/                  # agent-facing — distilled, chunked by area
+    <name>.md                 # plain markdown content
+    <name>.md.meta.json         # sidecar: id, title, area[], risk?, source_evidence_ids[]
 ```
 
 Evidence entries are append-only JSON (not markdown+frontmatter — simpler to validate reliably,
 and evidence is an audit trail, not something meant to be read as prose). `docs/` and `context/`
 stay markdown since both humans and LLMs read that well; the split between them is about content
-strategy (narrative vs. distilled/chunked-for-retrieval), not file format.
+strategy (narrative vs. distilled/chunked-for-retrieval), not file format. Context chunks carry
+their retrieval metadata in a `.meta.json` sidecar rather than markdown frontmatter, for the same
+reason evidence is JSON — no YAML parser needed, and the chunk itself stays plain, directly
+readable markdown.
+
+## Migration (non-conformant `.ai/`)
+
+`propose_ai_dir_migration` never classifies content — it just lists what's there. Classification
+(deciding what becomes a doc vs. a context chunk) is an interpretive step, so it's deferred to the
+same evidence → `write_doc`/`write_context_chunk` flow as everything else: `apply_ai_dir_migration`
+ingests every file under a non-conformant `.ai/` as a `source: "legacy-doc"`, `type: "raw-note"`
+evidence entry, then creates the scaffold. Originals are left on disk unless `remove_originals` is
+explicitly set — copy-first, delete-only-on-request, so a wrong ingestion never loses the original.
+
+## Synthesis
+
+`list_evidence` → the calling agent reads it and authors content → `write_doc` /
+`write_context_chunk` commits it. Neither tool diffs or merges — full-file replacement, since the
+agent already has the current content to work from if it wants it. Passing `source_evidence_ids`
+marks those entries synthesized and recomputes `evidence_pending_count` /
+`evidence_pending_corrections` / `needs_resync` from the actual remaining unsynthesized set.
 
 ## Why `scan_project` and `record_evidence` require `init_ai_scaffold` first
 

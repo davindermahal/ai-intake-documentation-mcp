@@ -1,8 +1,8 @@
-import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod";
 import { LAST_SCAN_CACHE, readManifest, writeManifest } from "@ai-intake/context-schema";
+import { currentGitSha } from "../git.js";
 
 const MANIFEST_FILES = [
   "package.json",
@@ -15,16 +15,6 @@ const MANIFEST_FILES = [
 ];
 
 const INFRA_SIGNALS = ["Dockerfile", "docker-compose.yml", "docker-compose.yaml", "terraform", "k8s", "kubernetes"];
-
-function currentGitSha(repoRoot: string): string | null {
-  try {
-    return execSync("git rev-parse HEAD", { cwd: repoRoot, stdio: ["ignore", "pipe", "ignore"] })
-      .toString()
-      .trim();
-  } catch {
-    return null; // no commits yet, or not a git repo
-  }
-}
 
 function findExisting(repoRoot: string, candidates: string[]): string[] {
   return candidates.filter((c) => existsSync(join(repoRoot, c)));

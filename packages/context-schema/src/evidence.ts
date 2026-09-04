@@ -55,6 +55,10 @@ export function appendEvidence(repoRoot: string, entry: EvidenceEntry): string {
   return relPath;
 }
 
+function evidenceDirs(repoRoot: string): string[] {
+  return [join(repoRoot, EVIDENCE_TICKETS_DIR), join(repoRoot, EVIDENCE_ONBOARDING_DIR)];
+}
+
 function readEvidenceDir(dir: string): EvidenceEntry[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
@@ -63,12 +67,43 @@ function readEvidenceDir(dir: string): EvidenceEntry[] {
 }
 
 export function listAllEvidence(repoRoot: string): EvidenceEntry[] {
-  return [
-    ...readEvidenceDir(join(repoRoot, EVIDENCE_TICKETS_DIR)),
-    ...readEvidenceDir(join(repoRoot, EVIDENCE_ONBOARDING_DIR)),
-  ];
+  return evidenceDirs(repoRoot).flatMap(readEvidenceDir);
 }
 
 export function listUnsynthesized(repoRoot: string): EvidenceEntry[] {
   return listAllEvidence(repoRoot).filter((e) => !e.synthesized);
+}
+
+/** Full path to the file backing an evidence id, or null if no entry with that id exists. */
+function findEvidenceFile(repoRoot: string, id: string): string | null {
+  for (const dir of evidenceDirs(repoRoot)) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith(".json")) continue;
+      const path = join(dir, f);
+      const entry = EvidenceSchema.parse(JSON.parse(readFileSync(path, "utf-8")));
+      if (entry.id === id) return path;
+    }
+  }
+  return null;
+}
+
+/** Marks the given evidence ids as synthesized. Silently skips ids that don't resolve to a file. */
+export function markSynthesized(repoRoot: string, ids: string[]): void {
+  for (const id of ids) {
+    const path = findEvidenceFile(repoRoot, id);
+    if (!path) continue;
+    const entry = EvidenceSchema.parse(JSON.parse(readFileSync(path, "utf-8")));
+    entry.synthesized = true;
+    writeFileSync(path, JSON.stringify(entry, null, 2) + "\n", "utf-8");
+  }
+}
+
+/** Counts derived fresh from actual unsynthesized evidence — never hand-incremented/decremented. */
+export function pendingCounts(repoRoot: string): { pending: number; corrections: number } {
+  const unsynthesized = listUnsynthesized(repoRoot);
+  return {
+    pending: unsynthesized.length,
+    corrections: unsynthesized.filter((e) => e.type === "correction").length,
+  };
 }

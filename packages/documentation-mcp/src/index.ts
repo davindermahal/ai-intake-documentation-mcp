@@ -6,8 +6,26 @@ import { initAiScaffoldTool } from "./tools/initAiScaffold.js";
 import { getSetupStatusTool } from "./tools/getSetupStatus.js";
 import { scanProjectTool } from "./tools/scanProject.js";
 import { recordEvidenceTool } from "./tools/recordEvidence.js";
+import { proposeAiDirMigrationTool } from "./tools/proposeAiDirMigration.js";
+import { applyAiDirMigrationTool } from "./tools/applyAiDirMigration.js";
+import { listEvidenceTool } from "./tools/listEvidence.js";
+import { writeDocTool } from "./tools/writeDoc.js";
+import { writeContextChunkTool } from "./tools/writeContextChunk.js";
+import { checkDriftTool } from "./tools/checkDrift.js";
 
-const TOOLS = [detectAiDirTool, initAiScaffoldTool, getSetupStatusTool, scanProjectTool, recordEvidenceTool];
+const TOOLS = [
+  detectAiDirTool,
+  initAiScaffoldTool,
+  getSetupStatusTool,
+  scanProjectTool,
+  recordEvidenceTool,
+  proposeAiDirMigrationTool,
+  applyAiDirMigrationTool,
+  listEvidenceTool,
+  writeDocTool,
+  writeContextChunkTool,
+  checkDriftTool,
+];
 
 async function main() {
   const server = new McpServer({ name: "documentation-mcp", version: "0.1.0" });
