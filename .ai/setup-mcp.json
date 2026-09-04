@@ -1,8 +1,8 @@
 {
   "schema_version": "0.1.0",
-  "last_scan_sha": null,
-  "last_synthesis_at": null,
-  "evidence_pending_count": 1,
+  "last_scan_sha": "8444c06b6dbbdfddbe2d5872463c2902a040045c",
+  "last_synthesis_at": "2026-09-04T14:58:50.642Z",
+  "evidence_pending_count": 0,
   "evidence_pending_corrections": 0,
   "needs_resync": false,
   "doc_index": {

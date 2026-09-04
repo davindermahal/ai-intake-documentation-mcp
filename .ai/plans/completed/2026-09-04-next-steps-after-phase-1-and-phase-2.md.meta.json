@@ -4,8 +4,8 @@
   "date": "2026-09-04T05:22:22.553Z",
   "description": "Prioritized follow-up work: real dry run, tests/CI, filing the harness ticket, npm publishing.",
   "ticket_key": null,
-  "status": "active",
+  "status": "completed",
   "created_by": "human",
   "approved_at": "2026-09-04T05:22:22.559Z",
-  "updated_at": "2026-09-04T05:22:22.559Z"
+  "updated_at": "2026-09-04T14:59:03.258Z"
 }

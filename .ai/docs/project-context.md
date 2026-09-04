@@ -5,7 +5,8 @@
 `ai-intake-documentation-mcp` is an MCP server that onboards a codebase for AI-agent-assisted
 development. Pointed at a project, it:
 
-1. Scans the repo mechanically (manifest files, CI config, infra signals, existing docs).
+1. Scans the repo mechanically (manifest files, CI config, infra signals, existing docs — human
+   and AI-agent-instruction docs alike), searching subdirectories as well as root.
 2. Surfaces the questions only a human can answer — purpose, target users, success criteria,
    hard constraints — rather than guessing at them.
 3. Maintains living documentation under `.ai/` built from an append-only evidence archive, so
@@ -40,8 +41,18 @@ clients' config files.
 
 ## Current status
 
-Phase 1 (this build): `detect_ai_dir`, `init_ai_scaffold`, `get_setup_status`, `scan_project`,
-`record_evidence`. Deliberately not yet built: the legacy-`.ai/`-content migration flow, the
-doc-synthesis tools that turn evidence into polished `docs/`/`context/` content, and
-`check_drift`. See `.ai/evidence/onboarding/` for the full founding-conversation record this was
+Built and committed: `detect_ai_dir`, `init_ai_scaffold`, `get_setup_status`, `scan_project`,
+`record_evidence`, the legacy-`.ai/`-migration flow (`propose_ai_dir_migration` /
+`apply_ai_dir_migration`), evidence synthesis (`list_evidence` / `write_doc` /
+`write_context_chunk`), drift detection (`check_drift`), the plans lifecycle (`write_plan` /
+`list_plans` / `transition_plan`), and `upgrade_ai_dir` for schema/scaffold drift. `scan_project`
+has since been hardened based on real dry-run testing against two real, external projects (see
+`.ai/plans/completed/`): it now searches manifest/infra files up to 2 directories deep and detects
+existing AI-agent-instruction docs (`AGENTS.md`/`CLAUDE.md`/etc.), not just README/CONTRIBUTING.
+
+Still open: an automated test suite + CI for this repo, npm publishing (package scope is
+currently a placeholder), and filing the `ai-intake-harness` integration ticket externally. See
+`.ai/plans/active/` for current tracked work.
+
+See `.ai/evidence/onboarding/` for the full founding-conversation record this was originally
 built from.
