@@ -1,0 +1,13 @@
+{
+  "id": "4fe1e0a0-ae9e-4dab-a123-4b85c194cb5f",
+  "date": "2026-09-04T04:40:04.624Z",
+  "synthesized": false,
+  "related_files": [
+    "packages/context-schema/src",
+    "packages/documentation-mcp/src"
+  ],
+  "ticket_key": null,
+  "type": "raw-note",
+  "source": "human",
+  "content": "Founding conversation (2026-09-03) established this project's scope and architecture:\n\n- Purpose: an MCP server that onboards a codebase for AI-agent-assisted development. It scans the project, interviews the human about purpose/business context, and maintains living .ai/docs (human-readable) and .ai/context (agent-facing) documentation built from an append-only .ai/evidence archive.\n- Works alongside ai-intake-mcp, an existing, separately-repo'd Jira ticket-execution harness (tools: tracker_get_issue, tracker_add_comment, tracker_transition, implement_ticket, worktree_create, write_repo_config, approve_plan, health_check). That server already auto-writes .ai/intake-mcp.json (Jira project keys + app tag) on first tracker use — untouched by this project.\n- Decided to keep the two as separate MCP servers rather than merging: different lifecycles (onboarding is rare/one-time-ish, ticket execution is continuous), different blast radius (implement_ticket touches git/code/tickets; this tool only reads code and writes markdown/JSON under .ai/), and someone may want project documentation without wanting Jira automation at all.\n- A shared schema package (@ai-intake/context-schema) factors out the .ai/ file layout, manifest shape, and evidence format so the two servers can never drift on what the directory structure means, without merging their runtime code.\n- Distribution: publish both as npm packages so command: npx, args: [-y, @scope/pkg] works verbatim in both Claude Code's .mcp.json and Gemini CLI's settings.json — confirmed both clients use the same mcpServers/command/args/env shape.\n- Evidence loop (planned, not yet built): the harness will call record_evidence during ticket work when it confirms a new business rule or finds existing docs wrong; a correction sets needs_resync so the next planning pass re-synthesizes before trusting stale context. A Jira ticket for this harness-side integration work was drafted for future filing.\n- Existing .ai/ directories found on a repo are never silently reorganized — detect_ai_dir/init_ai_scaffold refuse to overwrite non-conformant content; a future migration flow will ingest it as legacy-doc evidence instead of guessing a mapping."
+}

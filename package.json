@@ -1,0 +1,13 @@
+{
+  "name": "ai-intake-documentation-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Monorepo for the AI project-onboarding MCP server and its shared .ai/ schema library",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  }
+}

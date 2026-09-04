@@ -1,0 +1,22 @@
+{
+  "name": "@ai-intake/documentation-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that onboards a codebase for AI-agent-assisted development: scans the project, interviews the user, and maintains .ai/docs + .ai/context from an evidence archive",
+  "type": "module",
+  "bin": {
+    "documentation-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ai-intake/context-schema": "^0.1.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^24.0.0"
+  }
+}
