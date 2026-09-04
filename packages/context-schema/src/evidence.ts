@@ -5,7 +5,7 @@ import * as z from "zod";
 import { EVIDENCE_ONBOARDING_DIR, EVIDENCE_TICKETS_DIR } from "./paths.js";
 
 export const EvidenceTypeSchema = z.enum(["new-rule", "correction", "clarification", "raw-note"]);
-export const EvidenceSourceSchema = z.enum(["human", "agent-inferred", "legacy-doc"]);
+export const EvidenceSourceSchema = z.enum(["human", "agent-inferred", "legacy-doc", "existing-docs"]);
 
 export const EvidenceSchema = z.object({
   id: z.string(),

@@ -82,8 +82,8 @@ directly from a Claude Code session opened here. Once published to npm, `command
 | `detect_ai_dir` | Reports `absent` / `conformant` / `outdated` (ours, but stale — fix with `upgrade_ai_dir`) / `non-conformant` (not ours at all — fix with the migration flow) for a repo's `.ai/` — read-only, always safe to call. |
 | `init_ai_scaffold` | Creates `.ai/{docs,context,evidence,cache}` + a manifest. Refuses if `.ai/` already has non-conformant content. Idempotent once conformant. |
 | `get_setup_status` | Reads back the manifest: last scan/synthesis time, pending evidence counts, `needs_resync`. |
-| `scan_project` | Read-only repo scan (manifest files, CI config, infra signals, existing docs) plus a list of open questions only a human can answer. Requires `.ai/` to be initialized first. |
-| `record_evidence` | Appends an immutable evidence entry (`new-rule` / `correction` / `clarification` / `raw-note`). A `correction` sets `needs_resync`. Requires `.ai/` to be initialized first. |
+| `scan_project` | Read-only repo scan: manifest files and infra signals up to 2 directories deep (catches a frontend/api-style split, not just root), root-only CI config, existing human docs (README/CONTRIBUTING) and existing AI-agent docs (`AGENTS.md`/`CLAUDE.md`/`.cursorrules`/`.github/copilot-instructions.md`) separately, plus open questions only a human can answer. Requires `.ai/` to be initialized first. |
+| `record_evidence` | Appends an immutable evidence entry (`new-rule` / `correction` / `clarification` / `raw-note`; source `human` / `agent-inferred` / `legacy-doc` / `existing-docs`). A `correction` sets `needs_resync`. Requires `.ai/` to be initialized first. |
 | `propose_ai_dir_migration` | Read-only. If `.ai/` is non-conformant, lists every file found under it with size — no auto-classification. |
 | `apply_ai_dir_migration` | Ingests a non-conformant `.ai/`'s content as legacy evidence (`source: "legacy-doc"`), then scaffolds normally. Requires `confirm: true`; originals are kept unless `remove_originals` is set. |
 | `list_evidence` | Reads back evidence entries (unsynthesized by default) for the calling agent to review before writing docs/context. |

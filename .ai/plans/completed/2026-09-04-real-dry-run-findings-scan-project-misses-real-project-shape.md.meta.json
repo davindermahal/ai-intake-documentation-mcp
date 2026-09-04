@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-04-real-dry-run-findings-scan-project-misses-real-project-shape",
+  "title": "Real dry-run findings: scan_project misses real project shapes",
+  "date": "2026-09-04T05:50:28.767Z",
+  "description": "Two real-repo dry runs (kept generic in the writeup) found scan_project misses subdirectory manifests and AI-agent-instruction files like AGENTS.md, plus a schema gap in evidence source values. All three issues have since been fixed.",
+  "ticket_key": null,
+  "status": "completed",
+  "created_by": "documentation-mcp",
+  "approved_at": "2026-09-04T13:37:35.662Z",
+  "updated_at": "2026-09-04T13:37:35.666Z"
+}

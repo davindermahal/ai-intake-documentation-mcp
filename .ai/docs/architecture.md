@@ -136,6 +136,25 @@ correct regardless of which old version is being upgraded from. If a manifest's 
 has no path to current (no migration step covers it), `upgrade_ai_dir` fails with a clear error
 naming the missing step rather than guessing or silently leaving the manifest as-is.
 
+## `scan_project`'s search depth
+
+Manifest files and infra signals (Dockerfile/docker-compose) are searched root + 2 directories
+deep, skipping dependency/build/VCS/IDE directories (`SKIP_DIRS` in `scanProject.ts`) — real
+projects commonly split into subprojects (a frontend/api/admin layout, a services/ directory of
+independent services) with no manifest at the actual repo root, which a root-only check silently
+misses (an empty array, not an error — the worst kind of gap, since it looks like success).
+Matches are reported as paths relative to repo root, not bare filenames, since the same filename
+can legitimately appear more than once.
+
+**CI config stays root-only, deliberately** — GitHub Actions and GitLab CI are both read only from
+the repo root by those tools themselves, so depth-searching for `.github/workflows` or
+`.gitlab-ci.yml` would never find anything real; it would just cost more without adding value.
+
+`existing_agent_docs` (`AGENTS.md`/`CLAUDE.md`/`.cursorrules`/`.github/copilot-instructions.md`)
+is also root-only, same reasoning as README/CONTRIBUTING — these are a root-level convention, not
+a per-subproject one. Kept as its own field rather than merged into `existing_docs`, since
+"agent-context already exists" is a meaningfully different signal from "human docs exist."
+
 ## Why `scan_project` and `record_evidence` require `init_ai_scaffold` first
 
 Both write into `.ai/` (a cache file, or a new evidence entry + manifest update). Letting them run
