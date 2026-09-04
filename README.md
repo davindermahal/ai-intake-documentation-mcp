@@ -115,9 +115,10 @@ calling `record_evidence` during implementation — is tracked as future work, n
 
 - `npm run build` — builds both packages (`tsc`).
 - `npm run clean` — removes `dist/` in both packages.
-- No test suite yet; verification so far has been manual smoke-test scripts exercising all
-  fifteen tools against scratch repos (Phase 1: absent → init → conformant → scan → record
-  evidence → status; Phase 2: legacy migration, evidence → synthesis → status, and drift
-  detection; plans: write → list → transition through draft/active/completed, including the
-  collision-suffix case; outdated/upgrade: missing-directory backfill, an unmigratable
-  schema_version failing cleanly, and non-conformant repos left untouched).
+- `npm test` — runs the [Vitest](https://vitest.dev) suite (`packages/*/test/**/*.test.ts`),
+  covering everything the manual smoke-test scripts used to: `detect_ai_dir`/`init_ai_scaffold`
+  states, `scan_project`'s depth search and `existing_agent_docs` detection, evidence recording +
+  synthesis, the legacy-`.ai/` migration flow, the plans lifecycle (including the collision-suffix
+  case), and `upgrade_ai_dir` (missing-directory backfill, an unmigratable `schema_version` failing
+  cleanly, non-conformant repos left untouched).
+- CI (`.github/workflows/ci.yml`) runs `npm run build` + `npm test` on push/PR to `main`.
