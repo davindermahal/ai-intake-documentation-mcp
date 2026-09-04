@@ -11,10 +11,14 @@ ticket-execution harness.
 
 ## Status
 
-**Phase 1 + Phase 2 done**: scan a repo, detect/initialize `.ai/`, record evidence, ingest
-pre-existing/legacy `.ai/` content, fold evidence into polished docs, detect drift. See
+**Phase 1 + Phase 2 done**, plus a plans lifecycle: scan a repo, detect/initialize `.ai/`, record
+evidence, ingest pre-existing/legacy `.ai/` content, fold evidence into polished docs, detect
+drift, and track plans through draft/active/completed. See
 [`.ai/docs/project-context.md`](.ai/docs/project-context.md) for the full picture and
 [`.ai/evidence/onboarding/`](.ai/evidence/onboarding/) for the design record this was built from.
+
+**All Jira ticket work and all planning work must have a plan file under `.ai/plans/`** — see the
+[Tools](#tools) table below.
 
 ## Why documentation lives in two places
 
@@ -34,6 +38,7 @@ packages/
   context-schema/       @ai-intake/context-schema — shared .ai/ types, validators, fs helpers
   documentation-mcp/     @ai-intake/documentation-mcp — the MCP server
 .ai/                      this project's own onboarding output (dogfooded)
+  plans/                    draft/ active/ completed/ — required for all ticket + planning work
 ```
 
 A monorepo purely for development convenience (one commit can touch the schema and its consumer
@@ -85,11 +90,15 @@ directly from a Claude Code session opened here. Once published to npm, `command
 | `write_doc` | Commits agent-authored markdown to `.ai/docs/<path>`. Marks any referenced evidence synthesized and recomputes the manifest's pending counters. |
 | `write_context_chunk` | Same, to `.ai/context/<path>`, plus a `.meta.json` sidecar (title/area/risk) so a harness can retrieve chunks selectively by area. |
 | `check_drift` | Compares the manifest's `last_scan_sha` to current git HEAD; returns changed files if stale. Separate concern from `needs_resync` (evidence staleness). |
+| `write_plan` | Creates a plan file — **required for all Jira ticket work and all planning work**. Starts `draft` by default; filename is `<date>-<slug>.md` (or `<ticket_key>-<date>-<slug>.md`), auto-deduplicated on collision. |
+| `list_plans` | Returns full plan metadata + content, optionally filtered by `status` and/or `ticket_key`. |
+| `transition_plan` | Moves a plan between `draft`/`active`/`completed` — physically relocates the file, not just a status flag. Sets `approved_at` the first (and only the first) time a plan reaches `active`. |
 
 Typical call order: `detect_ai_dir` → (`init_ai_scaffold` or, if non-conformant,
 `propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as
 needed) → `list_evidence` → `write_doc` / `write_context_chunk` → `get_setup_status` /
-`check_drift`.
+`check_drift`. Independently, for any ticket or planning work: `write_plan` →
+`transition_plan` (draft → active on approval → completed when done).
 
 ## Relationship to `ai-intake-mcp`
 
@@ -105,6 +114,8 @@ calling `record_evidence` during implementation — is tracked as future work, n
 
 - `npm run build` — builds both packages (`tsc`).
 - `npm run clean` — removes `dist/` in both packages.
-- No test suite yet; verification so far has been manual smoke-test scripts exercising all eleven
-  tools against scratch repos (Phase 1: absent → init → conformant → scan → record evidence →
-  status; Phase 2: legacy migration, evidence → synthesis → status, and drift detection).
+- No test suite yet; verification so far has been manual smoke-test scripts exercising all
+  fourteen tools against scratch repos (Phase 1: absent → init → conformant → scan → record
+  evidence → status; Phase 2: legacy migration, evidence → synthesis → status, and drift
+  detection; plans: write → list → transition through draft/active/completed, including the
+  collision-suffix case).

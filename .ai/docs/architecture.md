@@ -18,9 +18,11 @@ the monorepo or the schema package's source directly.
 ## `@ai-intake/context-schema`
 
 Pure data layer: path constants, TypeScript types, zod validators, and thin fs read/write helpers
-for the `.ai/` directory (`paths.ts`, `manifest.ts`, `evidence.ts`, `context.ts`). Deliberately
-excludes Jira/git/LLM logic and MCP tool definitions — both servers depend on it, so it stays
-boring and side-effect-free by design rather than by discipline.
+for the `.ai/` directory (`paths.ts`, `manifest.ts`, `evidence.ts`, `context.ts`, `plans.ts`).
+Deliberately excludes Jira/git/LLM logic and MCP tool definitions — both servers depend on it, so
+it stays boring and side-effect-free by design rather than by discipline. This is also why plans
+live here rather than only in `documentation-mcp`: `ai-intake-harness` (a separate MCP server)
+must be able to write conformant plan files too, once its integration lands.
 
 ## `@ai-intake/documentation-mcp`
 
@@ -31,7 +33,9 @@ The MCP server itself (stdio transport, `@modelcontextprotocol/server` v2). Each
 `detect_ai_dir` → `init_ai_scaffold` (refuses on non-conformant; non-conformant instead goes
 `propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` / `record_evidence` (both
 require an initialized manifest) → `list_evidence` → `write_doc` / `write_context_chunk` →
-`get_setup_status` / `check_drift` (both read the manifest back).
+`get_setup_status` / `check_drift` (both read the manifest back). Independently: `write_plan` →
+`list_plans` / `transition_plan` for the plans lifecycle (see below) — not part of the
+evidence/synthesis chain, since a plan isn't derived from evidence the way docs/context are.
 
 `src/git.ts` holds `currentGitSha`/`changedFilesSince` (used by `scan_project` and `check_drift`;
 `execFileSync` with an argv array, not shell-interpolated strings, since `changedFilesSince`'s sha
@@ -57,6 +61,10 @@ evidence rather than incrementing/decrementing by hand.
   context/                  # agent-facing — distilled, chunked by area
     <name>.md                 # plain markdown content
     <name>.md.meta.json         # sidecar: id, title, area[], risk?, source_evidence_ids[]
+  plans/                    # required for all Jira ticket work and all planning work
+    draft/                    # proposed, not yet approved
+    active/                    # approved, currently governing work
+    completed/                  # done
 ```
 
 Evidence entries are append-only JSON (not markdown+frontmatter — simpler to validate reliably,
@@ -83,6 +91,22 @@ explicitly set — copy-first, delete-only-on-request, so a wrong ingestion neve
 agent already has the current content to work from if it wants it. Passing `source_evidence_ids`
 marks those entries synthesized and recomputes `evidence_pending_count` /
 `evidence_pending_corrections` / `needs_resync` from the actual remaining unsynthesized set.
+
+## Plans
+
+Every filename is `<date>-<slug>.md` (or `<ticket_key>-<date>-<slug>.md` when tied to a ticket) —
+same ticket-prefix convention as evidence filenames, and a `.md.meta.json` sidecar for the same
+reason context chunks have one. A plan's status is a *place*, not just a field: `transition_plan`
+physically moves the file between `draft/`/`active/`/`completed/`, so `ls .ai/plans/active/` alone
+is a truthful answer to "what's currently governing work" without opening every file. `approved_at`
+is set automatically the first time a plan reaches `active` and never overwritten after — it's an
+approval timestamp, not a "last time this was active" timestamp. No manifest tracking for plans
+(unlike `doc_index` for docs/context) — the three directories are already a complete index, and a
+manifest schema change would mean a migration for every existing `.ai/setup-mcp.json`.
+
+Transitions are intentionally unrestricted (any status to any status) — a plan getting sent back
+to draft, or a completed one reopened, are both real things that happen; enforcing a strict state
+machine here would be a rule nobody asked for.
 
 ## Why `scan_project` and `record_evidence` require `init_ai_scaffold` first
 

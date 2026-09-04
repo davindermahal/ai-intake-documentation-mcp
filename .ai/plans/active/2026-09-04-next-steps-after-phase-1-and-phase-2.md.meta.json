@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-04-next-steps-after-phase-1-and-phase-2",
+  "title": "Next steps after Phase 1 and Phase 2",
+  "date": "2026-09-04T05:22:22.553Z",
+  "description": "Prioritized follow-up work: real dry run, tests/CI, filing the harness ticket, npm publishing.",
+  "ticket_key": null,
+  "status": "active",
+  "created_by": "human",
+  "approved_at": "2026-09-04T05:22:22.559Z",
+  "updated_at": "2026-09-04T05:22:22.559Z"
+}

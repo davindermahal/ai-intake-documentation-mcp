@@ -12,6 +12,9 @@ import { listEvidenceTool } from "./tools/listEvidence.js";
 import { writeDocTool } from "./tools/writeDoc.js";
 import { writeContextChunkTool } from "./tools/writeContextChunk.js";
 import { checkDriftTool } from "./tools/checkDrift.js";
+import { writePlanTool } from "./tools/writePlan.js";
+import { listPlansTool } from "./tools/listPlans.js";
+import { transitionPlanTool } from "./tools/transitionPlan.js";
 
 const TOOLS = [
   detectAiDirTool,
@@ -25,6 +28,9 @@ const TOOLS = [
   writeDocTool,
   writeContextChunkTool,
   checkDriftTool,
+  writePlanTool,
+  listPlansTool,
+  transitionPlanTool,
 ];
 
 async function main() {

@@ -10,7 +10,11 @@
   `init_ai_scaffold` must run first and refuses if `.ai/` has non-conformant pre-existing content.
 - Rule: evidence entries (`.ai/evidence/**/*.json`) are append-only and never rewritten;
   `docs/`/`context/` are the polished layer, regenerated from evidence, not hand-patched to match.
-- Current build phase: Phase 1 only (detect/init/status/scan/record-evidence). Migration flow,
-  doc synthesis, and `check_drift` are explicitly not implemented yet.
+- Rule: all Jira ticket work and all planning work must have a plan file under `.ai/plans/`
+  (`draft`/`active`/`completed`), written via `write_plan`. This is a hard requirement, not a
+  nice-to-have — `ai-intake-harness` will write plans here too once its integration lands.
+- Current build phase: Phase 1 + Phase 2 done (detect/init/status/scan/record-evidence, legacy
+  migration, evidence synthesis, drift detection) plus the plans lifecycle
+  (`write_plan`/`list_plans`/`transition_plan`).
 - Distribution target: npm packages launched via `npx`, so config is identical across Claude Code
   and Gemini CLI.

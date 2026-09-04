@@ -3,11 +3,7 @@ import { join } from "node:path";
 import * as z from "zod";
 import {
   AI_DIR,
-  CACHE_DIR,
-  CONTEXT_DIR,
-  DOCS_DIR,
-  EVIDENCE_ONBOARDING_DIR,
-  EVIDENCE_TICKETS_DIR,
+  SCAFFOLD_DIRS,
   appendEvidence,
   createEvidence,
   emptyManifest,
@@ -65,7 +61,7 @@ export const applyAiDirMigrationTool = {
       appendEvidence(repoRoot, entry);
     }
 
-    for (const dir of [DOCS_DIR, CONTEXT_DIR, EVIDENCE_TICKETS_DIR, EVIDENCE_ONBOARDING_DIR, CACHE_DIR]) {
+    for (const dir of SCAFFOLD_DIRS) {
       mkdirSync(join(repoRoot, dir), { recursive: true });
     }
     const manifest = emptyManifest();

@@ -1,15 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod";
-import {
-  CACHE_DIR,
-  CONTEXT_DIR,
-  DOCS_DIR,
-  EVIDENCE_ONBOARDING_DIR,
-  EVIDENCE_TICKETS_DIR,
-  emptyManifest,
-  writeManifest,
-} from "@ai-intake/context-schema";
+import { SCAFFOLD_DIRS, emptyManifest, writeManifest } from "@ai-intake/context-schema";
 import { detectAiDir } from "./detectAiDir.js";
 
 export const initAiScaffoldTool = {
@@ -48,7 +40,7 @@ export const initAiScaffoldTool = {
       return { content: [{ type: "text" as const, text: JSON.stringify({ status: "already-initialized" }, null, 2) }] };
     }
 
-    for (const dir of [DOCS_DIR, CONTEXT_DIR, EVIDENCE_TICKETS_DIR, EVIDENCE_ONBOARDING_DIR, CACHE_DIR]) {
+    for (const dir of SCAFFOLD_DIRS) {
       mkdirSync(join(repoRoot, dir), { recursive: true });
     }
     writeManifest(repoRoot, emptyManifest());
