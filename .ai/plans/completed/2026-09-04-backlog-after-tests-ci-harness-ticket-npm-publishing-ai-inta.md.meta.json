@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-04-backlog-after-tests-ci-harness-ticket-npm-publishing-ai-inta",
+  "title": "Backlog after tests/CI: harness ticket, npm publishing, ai-intake-mcp create-issue tool",
+  "date": "2026-09-04T16:56:35.273Z",
+  "description": "Supersedes the tests/CI backlog plan (closed as completed — item 1 is done). Three remaining, independent items: file the harness ticket, decide npm publishing, add a create-issue tool to ai-intake-mcp.",
+  "ticket_key": null,
+  "status": "completed",
+  "created_by": "human",
+  "approved_at": "2026-09-04T16:56:35.273Z",
+  "updated_at": "2026-09-04T17:41:55.288Z"
+}
