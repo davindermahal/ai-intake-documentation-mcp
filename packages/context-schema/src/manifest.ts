@@ -40,6 +40,22 @@ export function readManifest(repoRoot: string): SetupManifest | null {
   return ManifestSchema.parse(raw);
 }
 
+/**
+ * Unvalidated read — returns the parsed JSON as-is, or null if the file is missing or isn't
+ * valid JSON. Used by detect_ai_dir/upgrade_ai_dir to distinguish "ours, but an older schema
+ * version" (still worth reading) from "not recognizable at all" (readManifest would throw for
+ * both cases, which loses that distinction).
+ */
+export function readManifestRaw(repoRoot: string): unknown | null {
+  const path = join(repoRoot, SETUP_MANIFEST);
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
 export function writeManifest(repoRoot: string, manifest: SetupManifest): void {
   const path = join(repoRoot, SETUP_MANIFEST);
   ManifestSchema.parse(manifest);

@@ -15,6 +15,7 @@ import { checkDriftTool } from "./tools/checkDrift.js";
 import { writePlanTool } from "./tools/writePlan.js";
 import { listPlansTool } from "./tools/listPlans.js";
 import { transitionPlanTool } from "./tools/transitionPlan.js";
+import { upgradeAiDirTool } from "./tools/upgradeAiDir.js";
 
 const TOOLS = [
   detectAiDirTool,
@@ -31,6 +32,7 @@ const TOOLS = [
   writePlanTool,
   listPlansTool,
   transitionPlanTool,
+  upgradeAiDirTool,
 ];
 
 async function main() {

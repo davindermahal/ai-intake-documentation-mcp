@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-04-add-outdated-ai-state-and-upgrade-ai-dir-tool",
+  "title": "Add outdated .ai/ state and upgrade_ai_dir tool",
+  "date": "2026-09-04T05:43:32.305Z",
+  "description": "detect_ai_dir gains an outdated state distinct from non-conformant, plus an upgrade_ai_dir tool that migrates the manifest and backfills missing scaffold directories.",
+  "ticket_key": null,
+  "status": "completed",
+  "created_by": "documentation-mcp",
+  "approved_at": "2026-09-04T05:43:32.310Z",
+  "updated_at": "2026-09-04T05:43:32.310Z"
+}

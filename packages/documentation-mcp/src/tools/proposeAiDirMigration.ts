@@ -26,7 +26,12 @@ function walk(dir: string, base: string): LegacyFile[] {
 export function proposeAiDirMigration(repoRoot: string): { status: string; files?: LegacyFile[] } {
   const status = detectAiDir(repoRoot);
   if (status.status !== "non-conformant") {
-    return { status: status.status === "absent" ? "nothing-to-migrate: .ai/ is absent, use init_ai_scaffold" : "nothing-to-migrate: .ai/ is already conformant" };
+    const messages: Record<"absent" | "conformant" | "outdated", string> = {
+      absent: "nothing-to-migrate: .ai/ is absent, use init_ai_scaffold",
+      conformant: "nothing-to-migrate: .ai/ is already conformant",
+      outdated: "nothing-to-migrate: .ai/ is ours but outdated, use upgrade_ai_dir instead",
+    };
+    return { status: messages[status.status] };
   }
   const aiDir = resolveAiDir(repoRoot);
   return { status: "migration-available", files: walk(aiDir, aiDir) };

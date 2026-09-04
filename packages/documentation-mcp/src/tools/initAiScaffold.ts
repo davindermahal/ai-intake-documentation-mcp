@@ -7,9 +7,10 @@ import { detectAiDir } from "./detectAiDir.js";
 export const initAiScaffoldTool = {
   name: "init_ai_scaffold",
   description:
-    "Creates the .ai/{docs,context,evidence,cache} structure and an initial manifest. Refuses if " +
-    "detect_ai_dir would report non-conformant, so it never overwrites pre-existing content — resolve " +
-    "that via the (future) migration flow first. Safe to call again once conformant; it's a no-op then.",
+    "Creates the .ai/{docs,context,evidence,cache,plans} structure and an initial manifest. " +
+    "Refuses if detect_ai_dir would report non-conformant (use propose_ai_dir_migration / " +
+    "apply_ai_dir_migration instead) or outdated (use upgrade_ai_dir instead), so it never " +
+    "overwrites pre-existing content. Safe to call again once conformant; it's a no-op then.",
   inputSchema: z.object({
     repo_root: z.string().optional().describe("Absolute path to the repo root. Defaults to the server's cwd."),
   }),
@@ -38,6 +39,22 @@ export const initAiScaffoldTool = {
 
     if (existing.status === "conformant") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ status: "already-initialized" }, null, 2) }] };
+    }
+
+    if (existing.status === "outdated") {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              { error: "outdated .ai/ directory (ours, but older) — use upgrade_ai_dir instead", ...existing },
+              null,
+              2
+            ),
+          },
+        ],
+        isError: true,
+      };
     }
 
     for (const dir of SCAFFOLD_DIRS) {

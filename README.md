@@ -79,7 +79,7 @@ directly from a Claude Code session opened here. Once published to npm, `command
 
 | Tool | Does |
 |---|---|
-| `detect_ai_dir` | Reports `absent` / `conformant` / `non-conformant` for a repo's `.ai/` — read-only, always safe to call. |
+| `detect_ai_dir` | Reports `absent` / `conformant` / `outdated` (ours, but stale — fix with `upgrade_ai_dir`) / `non-conformant` (not ours at all — fix with the migration flow) for a repo's `.ai/` — read-only, always safe to call. |
 | `init_ai_scaffold` | Creates `.ai/{docs,context,evidence,cache}` + a manifest. Refuses if `.ai/` already has non-conformant content. Idempotent once conformant. |
 | `get_setup_status` | Reads back the manifest: last scan/synthesis time, pending evidence counts, `needs_resync`. |
 | `scan_project` | Read-only repo scan (manifest files, CI config, infra signals, existing docs) plus a list of open questions only a human can answer. Requires `.ai/` to be initialized first. |
@@ -93,6 +93,7 @@ directly from a Claude Code session opened here. Once published to npm, `command
 | `write_plan` | Creates a plan file — **required for all Jira ticket work and all planning work**. Starts `draft` by default; filename is `<date>-<slug>.md` (or `<ticket_key>-<date>-<slug>.md`), auto-deduplicated on collision. |
 | `list_plans` | Returns full plan metadata + content, optionally filtered by `status` and/or `ticket_key`. |
 | `transition_plan` | Moves a plan between `draft`/`active`/`completed` — physically relocates the file, not just a status flag. Sets `approved_at` the first (and only the first) time a plan reaches `active`. |
+| `upgrade_ai_dir` | Fixes an `outdated` `.ai/`: migrates the manifest through `MANIFEST_MIGRATIONS` to the current schema version, and unconditionally backfills any missing `SCAFFOLD_DIRS` directory. Refuses (pointing to the right tool) if `.ai/` is absent, already conformant, or non-conformant. |
 
 Typical call order: `detect_ai_dir` → (`init_ai_scaffold` or, if non-conformant,
 `propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as
@@ -115,7 +116,8 @@ calling `record_evidence` during implementation — is tracked as future work, n
 - `npm run build` — builds both packages (`tsc`).
 - `npm run clean` — removes `dist/` in both packages.
 - No test suite yet; verification so far has been manual smoke-test scripts exercising all
-  fourteen tools against scratch repos (Phase 1: absent → init → conformant → scan → record
+  fifteen tools against scratch repos (Phase 1: absent → init → conformant → scan → record
   evidence → status; Phase 2: legacy migration, evidence → synthesis → status, and drift
   detection; plans: write → list → transition through draft/active/completed, including the
-  collision-suffix case).
+  collision-suffix case; outdated/upgrade: missing-directory backfill, an unmigratable
+  schema_version failing cleanly, and non-conformant repos left untouched).

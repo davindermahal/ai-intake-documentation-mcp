@@ -108,6 +108,34 @@ Transitions are intentionally unrestricted (any status to any status) — a plan
 to draft, or a completed one reopened, are both real things that happen; enforcing a strict state
 machine here would be a rule nobody asked for.
 
+## `detect_ai_dir`'s four states, and fixing drift with `upgrade_ai_dir`
+
+`detect_ai_dir` classifies a repo's `.ai/` into one of four states, each with exactly one correct
+remedy:
+
+| Status | Meaning | Fix |
+|---|---|---|
+| `absent` | No `.ai/` at all | `init_ai_scaffold` |
+| `conformant` | Manifest is current *and* every `SCAFFOLD_DIRS` entry exists | nothing |
+| `outdated` | Manifest has a `schema_version` (recognizably ours) but it's stale, and/or some current-version directories are missing | `upgrade_ai_dir` |
+| `non-conformant` | No recognizable manifest at all — truly foreign content | `propose_ai_dir_migration` → `apply_ai_dir_migration` |
+
+The `schema_version` field is what separates `outdated` from `non-conformant`: its presence alone
+means the file is recognizably ours, however old, and deserves an in-place upgrade rather than
+full re-ingestion as evidence. `conformant` isn't just "the manifest parses" — it also requires
+every `SCAFFOLD_DIRS` entry to exist, since a manifest can be perfectly valid while the directory
+structure it describes is incomplete (this repo's own `.ai/` was missing `plans/{draft,active,completed}`
+for a time, with a fully-valid manifest, and nothing detected it before this existed).
+
+`upgrade_ai_dir` has two independent jobs, run together: migrate the manifest through
+`MANIFEST_MIGRATIONS` (a from→to step chain in `context-schema/src/migrations.ts`, empty today —
+only `0.1.0` has ever existed) to the current schema version, and unconditionally backfill any
+`SCAFFOLD_DIRS` entry that's missing. The directory backfill needs no per-version logic at all:
+`SCAFFOLD_DIRS` already lists the complete current set, so "create whatever's missing" is
+correct regardless of which old version is being upgraded from. If a manifest's `schema_version`
+has no path to current (no migration step covers it), `upgrade_ai_dir` fails with a clear error
+naming the missing step rather than guessing or silently leaving the manifest as-is.
+
 ## Why `scan_project` and `record_evidence` require `init_ai_scaffold` first
 
 Both write into `.ai/` (a cache file, or a new evidence entry + manifest update). Letting them run
