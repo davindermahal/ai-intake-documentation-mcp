@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as z from "zod";
-import { DOCS_DIR, readManifest } from "@ai-intake/context-schema";
+import { DOCS_DIR, readManifest } from "@dmahal/context-schema";
 import { recordSynthesis } from "../synthesis.js";
 
 export const writeDocTool = {

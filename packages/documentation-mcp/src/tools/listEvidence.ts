@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { listAllEvidence, listUnsynthesized } from "@ai-intake/context-schema";
+import { listAllEvidence, listUnsynthesized } from "@dmahal/context-schema";
 
 export const listEvidenceTool = {
   name: "list_evidence",

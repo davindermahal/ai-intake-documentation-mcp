@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { readManifest, writePlan } from "@ai-intake/context-schema";
+import { readManifest, writePlan } from "@dmahal/context-schema";
 
 export const writePlanTool = {
   name: "write_plan",

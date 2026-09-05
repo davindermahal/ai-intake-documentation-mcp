@@ -1,4 +1,4 @@
-import { markSynthesized, pendingCounts, readManifest, writeManifest, type SetupManifest } from "@ai-intake/context-schema";
+import { markSynthesized, pendingCounts, readManifest, writeManifest, type SetupManifest } from "@dmahal/context-schema";
 
 /**
  * Shared bookkeeping for write_doc / write_context_chunk: records the written path in

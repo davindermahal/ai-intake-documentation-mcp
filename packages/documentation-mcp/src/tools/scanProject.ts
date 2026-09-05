@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod";
-import { LAST_SCAN_CACHE, readManifest, writeManifest } from "@ai-intake/context-schema";
+import { LAST_SCAN_CACHE, readManifest, writeManifest } from "@dmahal/context-schema";
 import { currentGitSha } from "../git.js";
 
 const MANIFEST_FILES = [

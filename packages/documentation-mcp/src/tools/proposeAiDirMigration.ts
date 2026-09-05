@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import * as z from "zod";
-import { resolveAiDir } from "@ai-intake/context-schema";
+import { resolveAiDir } from "@dmahal/context-schema";
 import { detectAiDir } from "./detectAiDir.js";
 
 export interface LegacyFile {

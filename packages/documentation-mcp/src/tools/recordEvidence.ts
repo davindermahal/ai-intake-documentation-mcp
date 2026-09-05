@@ -6,7 +6,7 @@ import {
   createEvidence,
   readManifest,
   writeManifest,
-} from "@ai-intake/context-schema";
+} from "@dmahal/context-schema";
 
 export const recordEvidenceTool = {
   name: "record_evidence",

@@ -28,7 +28,7 @@ This project deliberately stays a separate server rather than merging into it:
 - **Independent value** — someone may want good AI-agent context for a project without wanting
   Jira ticket automation at all.
 
-They're kept interoperable through a shared schema package (`@ai-intake/context-schema`) rather
+They're kept interoperable through a shared schema package (`@dmahal/context-schema`) rather
 than shared runtime code, so the `.ai/` file layout can't drift between the two servers even
 though they're developed and released independently.
 

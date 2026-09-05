@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { readManifest } from "@ai-intake/context-schema";
+import { readManifest } from "@dmahal/context-schema";
 import { changedFilesSince, currentGitSha } from "../git.js";
 
 export const checkDriftTool = {

@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { readManifest, writeContextChunk } from "@ai-intake/context-schema";
+import { readManifest, writeContextChunk } from "@dmahal/context-schema";
 import { recordSynthesis } from "../synthesis.js";
 
 export const writeContextChunkTool = {
