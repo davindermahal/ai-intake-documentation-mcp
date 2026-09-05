@@ -1,5 +1,5 @@
 {
-  "name": "@dmahal/documentation-mcp",
+  "name": "@davindermahal/documentation-mcp",
   "version": "0.1.0",
   "description": "MCP server that onboards a codebase for AI-agent-assisted development: scans the project, interviews the user, and maintains .ai/docs + .ai/context from an evidence archive",
   "license": "MIT",
@@ -12,7 +12,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@dmahal/context-schema": "^0.1.0",
+    "@davindermahal/context-schema": "^0.1.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.0.0"
   },

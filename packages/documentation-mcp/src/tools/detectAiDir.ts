@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod";
-import { CURRENT_SCHEMA_VERSION, ManifestSchema, SCAFFOLD_DIRS, readManifestRaw, resolveAiDir } from "@dmahal/context-schema";
+import { CURRENT_SCHEMA_VERSION, ManifestSchema, SCAFFOLD_DIRS, readManifestRaw, resolveAiDir } from "@davindermahal/context-schema";
 
 export type AiDirStatus =
   | { status: "absent" }

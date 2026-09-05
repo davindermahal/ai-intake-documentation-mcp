@@ -5,17 +5,17 @@
 ```
 ai-intake-documentation-mcp/       npm workspaces monorepo
   packages/
-    context-schema/                 @dmahal/context-schema
-    documentation-mcp/               @dmahal/documentation-mcp
+    context-schema/                 @davindermahal/context-schema
+    documentation-mcp/               @davindermahal/documentation-mcp
   .ai/                               this repo's own onboarding output (dogfooded)
 ```
 
 Monorepo is a dev-convenience choice, not a distribution one: a change touching the schema and
 its one consumer here is one commit instead of two coordinated releases. Each package still
-publishes to npm independently — a user installing `@dmahal/documentation-mcp` never touches
+publishes to npm independently — a user installing `@davindermahal/documentation-mcp` never touches
 the monorepo or the schema package's source directly.
 
-## `@dmahal/context-schema`
+## `@davindermahal/context-schema`
 
 Pure data layer: path constants, TypeScript types, zod validators, and thin fs read/write helpers
 for the `.ai/` directory (`paths.ts`, `manifest.ts`, `evidence.ts`, `context.ts`, `plans.ts`).
@@ -24,7 +24,7 @@ it stays boring and side-effect-free by design rather than by discipline. This i
 live here rather than only in `documentation-mcp`: `ai-intake-harness` (a separate MCP server)
 must be able to write conformant plan files too, once its integration lands.
 
-## `@dmahal/documentation-mcp`
+## `@davindermahal/documentation-mcp`
 
 The MCP server itself (stdio transport, `@modelcontextprotocol/server` v2). Each tool is a plain
 `{ name, description, inputSchema, handler }` object under `src/tools/`, registered in

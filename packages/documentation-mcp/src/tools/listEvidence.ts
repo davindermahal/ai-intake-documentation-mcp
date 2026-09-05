@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { listAllEvidence, listUnsynthesized } from "@dmahal/context-schema";
+import { listAllEvidence, listUnsynthesized } from "@davindermahal/context-schema";
 
 export const listEvidenceTool = {
   name: "list_evidence",

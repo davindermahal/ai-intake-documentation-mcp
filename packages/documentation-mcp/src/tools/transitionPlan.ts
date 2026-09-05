@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { movePlan } from "@dmahal/context-schema";
+import { movePlan } from "@davindermahal/context-schema";
 
 export const transitionPlanTool = {
   name: "transition_plan",

@@ -6,7 +6,7 @@ import {
   createEvidence,
   readManifest,
   writeManifest,
-} from "@dmahal/context-schema";
+} from "@davindermahal/context-schema";
 
 export const recordEvidenceTool = {
   name: "record_evidence",

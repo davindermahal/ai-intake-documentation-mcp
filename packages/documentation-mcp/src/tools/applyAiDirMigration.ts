@@ -10,7 +10,7 @@ import {
   pendingCounts,
   resolveAiDir,
   writeManifest,
-} from "@dmahal/context-schema";
+} from "@davindermahal/context-schema";
 import { proposeAiDirMigration } from "./proposeAiDirMigration.js";
 
 export const applyAiDirMigrationTool = {

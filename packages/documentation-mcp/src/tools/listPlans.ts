@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { listPlans } from "@dmahal/context-schema";
+import { listPlans } from "@davindermahal/context-schema";
 
 export const listPlansTool = {
   name: "list_plans",

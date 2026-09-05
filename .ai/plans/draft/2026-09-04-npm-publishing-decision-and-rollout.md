@@ -19,9 +19,11 @@ the reconciled backlog isn't blocked on resolving those questions first.
 1. **Public npm vs. an internal registry.** Affects the npm scope, the auth/publish setup, and
    whether `documentation-mcp`/`context-schema` are meant for anyone outside this machine to use
    yet, or just other repos/sessions you control.
-2. **Package scope.** ~~Currently a placeholder~~ **Resolved 2026-09-05**: `@dmahal` (a new npm
-   org, confirmed owned via `npm org ls dmahal`). Packages renamed to `@dmahal/context-schema` and
-   `@dmahal/documentation-mcp` across `package.json`, source imports, and docs.
+2. **Package scope.** ~~Currently a placeholder~~ ~~Resolved 2026-09-05: `@dmahal`~~ **Superseded
+   2026-09-05**: `@davindermahal` — your actual npm username's personal scope (free, automatic, no
+   org needed), used instead of the separately-created `@dmahal` org. Packages renamed to
+   `@davindermahal/context-schema` and `@davindermahal/documentation-mcp` across `package.json`,
+   source imports, and docs.
 3. **Versioning/release process.** Manual `npm publish` per package, or something more automated
    (a release script, changesets, CI-triggered publish on tag)? No CI publish step exists yet —
    the current GitHub Actions workflow only builds and tests.

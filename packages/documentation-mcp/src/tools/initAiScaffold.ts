@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod";
-import { SCAFFOLD_DIRS, emptyManifest, writeManifest } from "@dmahal/context-schema";
+import { SCAFFOLD_DIRS, emptyManifest, writeManifest } from "@davindermahal/context-schema";
 import { detectAiDir } from "./detectAiDir.js";
 
 export const initAiScaffoldTool = {

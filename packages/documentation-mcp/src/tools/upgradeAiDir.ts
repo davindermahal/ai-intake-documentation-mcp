@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import * as z from "zod";
-import { SCAFFOLD_DIRS, migrateManifestRaw, readManifestRaw, writeManifest } from "@dmahal/context-schema";
+import { SCAFFOLD_DIRS, migrateManifestRaw, readManifestRaw, writeManifest } from "@davindermahal/context-schema";
 import { detectAiDir } from "./detectAiDir.js";
 
 export const upgradeAiDirTool = {

@@ -35,8 +35,8 @@ onto it. See [`.ai/docs/architecture.md`](.ai/docs/architecture.md) for the full
 
 ```
 packages/
-  context-schema/       @dmahal/context-schema — shared .ai/ types, validators, fs helpers
-  documentation-mcp/     @dmahal/documentation-mcp — the MCP server
+  context-schema/       @davindermahal/context-schema — shared .ai/ types, validators, fs helpers
+  documentation-mcp/     @davindermahal/documentation-mcp — the MCP server
 .ai/                      this project's own onboarding output (dogfooded)
   plans/                    draft/ active/ completed/ — required for all ticket + planning work
 ```
@@ -73,7 +73,7 @@ root script — the server imports the schema package's compiled output.
 
 This repo's own [`.mcp.json`](.mcp.json) already points at the local build, so it's usable
 directly from a Claude Code session opened here. Once published to npm, `command`/`args` becomes
-`npx -y @dmahal/documentation-mcp` instead of a local path — identical config in both clients.
+`npx -y @davindermahal/documentation-mcp` instead of a local path — identical config in both clients.
 
 ## Tools
 
@@ -107,7 +107,7 @@ needed) → `list_evidence` → `write_doc` / `write_context_chunk` → `get_set
 (`tracker_get_issue`, `implement_ticket`, `approve_plan`, `worktree_create`, etc.) that auto-writes
 `.ai/intake-mcp.json` on first tracker use. This project never touches that file. The two stay
 separate servers (different lifecycle, different blast radius) but share the `.ai/` schema via
-`@dmahal/context-schema`, so their file layout can't drift even though they're released
+`@davindermahal/context-schema`, so their file layout can't drift even though they're released
 independently. The planned integration — the harness reading `.ai/context/` during planning and
 calling `record_evidence` during implementation — is tracked as future work, not yet built here.
 

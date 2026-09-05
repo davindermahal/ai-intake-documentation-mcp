@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { readManifest } from "@dmahal/context-schema";
+import { readManifest } from "@davindermahal/context-schema";
 
 export const getSetupStatusTool = {
   name: "get_setup_status",

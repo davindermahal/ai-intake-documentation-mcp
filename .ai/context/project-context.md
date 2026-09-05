@@ -1,10 +1,10 @@
 # Project context (agent-facing)
 
-- This repo builds `@dmahal/documentation-mcp`, an MCP server that onboards other codebases
+- This repo builds `@davindermahal/documentation-mcp`, an MCP server that onboards other codebases
   for AI-agent-assisted development (scan → interview → living `.ai/docs`+`.ai/context` built
   from an evidence archive).
 - It is a separate MCP server from `ai-intake-mcp` (Jira ticket-execution harness), sharing only
-  a schema package (`@dmahal/context-schema`), never runtime code.
+  a schema package (`@davindermahal/context-schema`), never runtime code.
 - Rule: never write `.ai/intake-mcp.json` — that file is owned by `ai-intake-mcp`.
 - Rule: `scan_project` and `record_evidence` require `.ai/setup-mcp.json` to already exist;
   `init_ai_scaffold` must run first and refuses if `.ai/` has non-conformant pre-existing content.
