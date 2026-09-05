@@ -122,3 +122,7 @@ calling `record_evidence` during implementation — is tracked as future work, n
   case), and `upgrade_ai_dir` (missing-directory backfill, an unmigratable `schema_version` failing
   cleanly, non-conformant repos left untouched).
 - CI (`.github/workflows/ci.yml`) runs `npm run build` + `npm test` on push/PR to `main`.
+
+## License
+
+[MIT](LICENSE)

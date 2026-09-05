@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "description": "Monorepo for the AI project-onboarding MCP server and its shared .ai/ schema library",
   "workspaces": [
     "packages/*"

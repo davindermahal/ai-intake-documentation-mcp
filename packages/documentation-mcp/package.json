@@ -2,6 +2,7 @@
   "name": "@ai-intake/documentation-mcp",
   "version": "0.1.0",
   "description": "MCP server that onboards a codebase for AI-agent-assisted development: scans the project, interviews the user, and maintains .ai/docs + .ai/context from an evidence archive",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "documentation-mcp": "./dist/index.js"
