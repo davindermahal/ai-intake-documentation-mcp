@@ -101,4 +101,12 @@ describe("sync_guide", () => {
     const result = await syncGuideTool.handler({ title: "Renamed Guide", description: "d", content: "c", tags: [], page_id: "50" });
     expect(textOf(result)).toEqual({ status: "updated", url: "https://x/pages/50" });
   });
+
+  it("errors rather than silently creating a duplicate when page_id doesn't resolve", async () => {
+    writeFullConfig("1");
+    const result = await syncGuideTool.handler({ title: "T", description: "d", content: "c", tags: [], page_id: "999" });
+    expect(result.isError).toBe(true);
+    expect((textOf(result) as { error: string }).error).toMatch(/999/);
+    expect(updateCalls).toHaveLength(0);
+  });
 });

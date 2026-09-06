@@ -63,6 +63,10 @@ export const syncGuideTool = {
       ? await client.getPageById(page_id)
       : await client.getPageByTitle({ spaceKey: config.confluenceSpaceKey, title });
 
+    if (page_id && !existing) {
+      return errorResult(`page_id ${page_id} does not resolve to an existing page`);
+    }
+
     const guidePage = existing
       ? await client.updatePage({ pageId: existing.id, title, storageBody, version: existing.version })
       : await client.createPage({ spaceKey: config.confluenceSpaceKey, title, storageBody, parentId: indexPage.id });
