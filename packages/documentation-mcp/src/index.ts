@@ -1,6 +1,12 @@
 #!/usr/bin/env node
+import { createServer } from "node:http";
 import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import {
+  NodeStreamableHTTPServerTransport,
+  localhostHostValidation,
+  localhostOriginValidation,
+} from "@modelcontextprotocol/node";
 import { ensureAiDirTool } from "./tools/ensureAiDir.js";
 import { getSetupStatusTool } from "./tools/getSetupStatus.js";
 import { scanProjectTool } from "./tools/scanProject.js";
@@ -47,8 +53,20 @@ async function main() {
     startDocumentationPrompt.handler as never,
   );
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  if (process.env.MCP_TRANSPORT === "http") {
+    const port = Number(process.env.MCP_HTTP_PORT ?? 3940);
+    const validateHost = localhostHostValidation();
+    const validateOrigin = localhostOriginValidation();
+    createServer(async (req, res) => {
+      if (!validateHost(req, res) || !validateOrigin(req, res)) return;
+      const transport = new NodeStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      await server.connect(transport);
+      await transport.handleRequest(req, res);
+    }).listen(port, "127.0.0.1");
+    console.error(`documentation-mcp listening on http://127.0.0.1:${port}/mcp`);
+  } else {
+    await server.connect(new StdioServerTransport());
+  }
 }
 
 main().catch((err) => {
