@@ -69,22 +69,22 @@ this exists if this package is ever deployed to a non-Node runtime.
 - **No shared/hosted server for now** — same reasoning as the companion plan; each user runs
   their own local instance.
 
-## Open questions
+## Open questions (resolved)
 
-1. **Port default (`3940`)** — placeholder, same caveat as `ai-intake-mcp`'s `3939`: pick something
-   less likely to collide, or drop the default entirely and require it be set explicitly.
-2. **Test coverage for the HTTP path** — this repo's `vitest` suite (`packages/*/test/**`) currently
-   has no transport-layer tests at all (stdio or otherwise) per the existing test layout; decide
-   whether adding HTTP is the moment to add a first real transport round-trip test, or whether
-   that's tracked separately.
-3. **Any state this server holds that a persistent HTTP instance changes the story on** — `write_doc`,
-   `write_plan`, etc. all operate against whatever project's `.ai/` directory the caller's `cwd`
-   points at when spawned over stdio. Over HTTP, the server is a **long-lived process with a fixed
-   cwd at the moment it was started** — confirm every tool resolves its target repo from an
-   explicit `repo_root`-style parameter already (this session's own tool calls do — `write_plan`,
-   `list_plans`, and `get_setup_status` all accept `repo_root`), not from `process.cwd()`, before
-   relying on one persistent instance to serve requests against more than one project. If any tool
-   still relies on `process.cwd()`, that tool is stdio-only until fixed.
+1. **Port default (`3940`)** — **kept as-is.** `3939`/`3940` don't collide with common dev-server
+   defaults (3000, 5173, 8080, etc.) and this is a single-user local instance, not a shared service,
+   so the collision risk is low enough not to warrant requiring `MCP_HTTP_PORT` explicitly.
+2. **Test coverage for the HTTP path** — **added.** `packages/documentation-mcp/test/http-transport.test.ts`
+   spins up the real `NodeStreamableHTTPServerTransport` HTTP listener on an ephemeral port and
+   covers: a real `initialize` round-trip returning `serverInfo`, and 403 rejection for spoofed
+   `Host`/`Origin` headers. This required exporting `createMcpServer()` and
+   `createHttpRequestListener()` from `index.ts` (previously everything lived inline in `main()`)
+   and guarding the `main().catch(...)` CLI bootstrap behind an `import.meta.url` check, so the
+   module can be imported by tests without starting a real transport as a side effect.
+3. **Any state this server holds that a persistent HTTP instance changes the story on** — **confirmed
+   fine.** Every tool (`write_doc`, `write_plan`, `list_plans`, `get_setup_status`, etc.) already
+   takes an optional `repo_root` parameter and falls back to `process.cwd()` only as a default —
+   none of them hard-depend on `process.cwd()`. No tool needs to be restricted to stdio-only.
 
 ## Verification
 
