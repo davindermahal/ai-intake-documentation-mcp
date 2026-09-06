@@ -86,16 +86,50 @@ this exists if this package is ever deployed to a non-Node runtime.
    takes an optional `repo_root` parameter and falls back to `process.cwd()` only as a default —
    none of them hard-depend on `process.cwd()`. No tool needs to be restricted to stdio-only.
 
+## Known limitation: `gemini-sandbox` (Docker) is not supported
+
+Confirmed by testing directly against the `gemini-sandbox-toolkit` image (not just reasoned about):
+
+1. `gemini-sandbox` runs `gemini` inside a Docker container with `--add-host
+   host.docker.internal:host-gateway` (found in the installed CLI's bundled sandbox code) — it does
+   **not** use `--network host`. So `127.0.0.1` inside the container is the container itself, not
+   the host.
+2. Our server binds strictly to `127.0.0.1` on the host. From inside the sandbox container, `curl`
+   to both `http://127.0.0.1:3940` and `http://host.docker.internal:3940` got connection-refused
+   (`curl` exit 7) — confirmed with a real `gemini-sandbox -s -p "..."` run too (it reported "MCP
+   issues detected" and never connected to the server).
+3. Isolating the two causes with a throwaway listener: binding to `0.0.0.0` instead of `127.0.0.1`
+   *does* make the host reachable from inside the container via `host.docker.internal`.
+4. But even then, `localhostHostValidation()` still rejects it — `403 {"error":{"message":"Invalid
+   Host: host.docker.internal"}}` — since it only allows `localhost`/`127.0.0.1`/`[::1]`.
+
+So HTTP transport, as implemented, only works for **direct, unsandboxed** `gemini` pointed at a
+locally-run instance. Making it reachable from `gemini-sandbox` would require binding wider than
+loopback and widening the Host/Origin allowlist to include `host.docker.internal` — a real, and
+explicitly declined, loosening of the "loopback-only, single local instance" security posture this
+plan chose (see Key decisions above). `gemini-sandbox` users should keep using the existing
+stdio-based baked-in image registration (`gemini-sandbox-toolkit`'s `install.sh`), which is
+unaffected by this — the stdio smoke test in Verification below reconfirms it still works.
+
+If sandbox support is wanted later, the design change (opt-in wider bind + allowlist) can be a
+separate plan — not folded in here silently.
+
 ## Verification
 
-1. `npm run build && npm test` (workspace-wide, `packages/*`) — must still pass unchanged.
-2. stdio smoke test (regression): the existing `gemini-sandbox-toolkit` `debug.sh` handshake check
-   against this package's baked-in image install is the reference — reuse that exact check locally.
-3. HTTP smoke test (new): `MCP_TRANSPORT=http node packages/documentation-mcp/dist/index.js &`,
-   then a real HTTP `initialize` POST to `http://127.0.0.1:3940/mcp`, confirming the same
-   `serverInfo` response stdio returns.
-4. If any tool is found to depend on `process.cwd()` per Open question 3, confirm it either already
-   receives an explicit path parameter for the affected call, or document that tool as stdio-only
-   until it's fixed — don't ship the HTTP transport with a silently-broken tool under it.
-5. Confirm `gemini mcp add documentation-mcp http://127.0.0.1:3940/mcp --transport http` on a real
-   `gemini` (not sandboxed) actually lists and calls a tool end to end.
+1. **`npm run build && npm test`** — pass. 11 test files, 46 tests (43 pre-existing + 3 new in
+   `packages/documentation-mcp/test/http-transport.test.ts`).
+2. **stdio smoke test (regression)** — pass. `gemini-sandbox-toolkit`'s `./debug.sh` handshake
+   check against the baked-in image install returned `[OK]` for `ai-intake-mcp`,
+   `ai-intake-documentation-mcp`, and `chrome-devtools-mcp`, all unaffected by this change.
+3. **HTTP smoke test** — pass. `MCP_TRANSPORT=http node packages/documentation-mcp/dist/index.js`,
+   then a real HTTP `initialize` POST to `http://127.0.0.1:3940/mcp`, returned the same `serverInfo`
+   stdio returns. Also confirmed spoofed `Host`/`Origin` headers get `403`.
+4. **`process.cwd()` audit** — pass. Every tool already takes an optional `repo_root` parameter and
+   falls back to `process.cwd()` only as a default; none is stdio-only.
+5. **Real `gemini` end-to-end (unsandboxed)** — pass. `gemini mcp add documentation-mcp-http-test
+   http://127.0.0.1:3940/mcp --transport http` connected, and a non-interactive `gemini -p "..."`
+   call to `get_setup_status` with an explicit `repo_root` round-tripped correctly
+   (`{"status":"not-initialized"}` for a fresh scratch repo).
+6. **`gemini-sandbox` (Docker) end-to-end** — **fails, as documented above.** Not a regression (it
+   never worked, and was never claimed to) — recorded here as a tested and confirmed limitation,
+   not an open question.
