@@ -62,14 +62,16 @@ CONFLUENCE_GUIDE_INDEX_URL=https://confluence.example.com/pages/GUIDE_INDEX
 - `CONFLUENCE_SPACE_KEY` is new — needed to create a page at all (Confluence's create-content API
   requires a target space). Required only for `ensure_guide_index`/`sync_guide`; everything else in
   this server works exactly as it does today without it.
-- Auth and base site URL default to reusing `JIRA_SITE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN`
-  from the same file (shared-tenant assumption), but per the sibling plan's (now-resolved) Key
-  decision #6, three more optional fields override them individually if Confluence ever turns out
-  to be a separate tenant:
+- Auth and base site URL default to reusing `JIRA_SITE_URL`, `JIRA_INTAKE_EMAIL`, and
+  `JIRA_INTAKE_API_TOKEN` from the same file (shared-tenant assumption; those are `ai-intake-mcp`'s
+  actual field names, not `JIRA_EMAIL`/`JIRA_API_TOKEN` as earlier drafts of this plan said — that
+  wording mismatch actually shipped as a bug and was caught and fixed during implementation), but
+  per the sibling plan's (now-resolved) Key decision #6, three more optional fields override them
+  individually if Confluence ever turns out to be a separate tenant:
   ```
   CONFLUENCE_SITE_URL=   # falls back to JIRA_SITE_URL if unset
-  CONFLUENCE_EMAIL=      # falls back to JIRA_EMAIL if unset
-  CONFLUENCE_API_TOKEN=  # falls back to JIRA_API_TOKEN if unset
+  CONFLUENCE_EMAIL=      # falls back to JIRA_INTAKE_EMAIL if unset
+  CONFLUENCE_API_TOKEN=  # falls back to JIRA_INTAKE_API_TOKEN if unset
   ```
   See Key decision #2 for the cross-repo coupling this creates.
 
@@ -127,7 +129,10 @@ Verification #3), and serializes an updated row set back into the same table mar
   - Behavior: convert `content` to storage format; find the existing leaf page by `page_id` if
     given, else by exact `title` match within `CONFLUENCE_SPACE_KEY`; create it (as a child of the
     index page, Key decision #3) or update it; then upsert its row on the index table (replace on
-    exact title match, else append).
+    exact title match, else append). If `page_id` is given but doesn't resolve to a real page,
+    error rather than silently falling through to create a new one — caught during implementation
+    review, since the tool's own contract is "match by `page_id` if given," not "try `page_id`,
+    then fall back to creating."
   - Output: the guide's page URL and whether it was created or updated.
 
 ### 6. New prompt: `write_guide`
@@ -162,17 +167,22 @@ different repo's plan, not this one — see Key decision #2's related risk.
 ### 2. Reuses Jira credentials for Confluence auth by default, with per-field override
 
 **Resolved**, matching the sibling plan's (now-resolved) Key decision #6: default behavior (all
-three `CONFLUENCE_*` override fields unset) reuses `JIRA_SITE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN` —
-believed to be correct (same Atlassian Cloud tenant) but not confirmed with certainty. If that
-turns out to be wrong, setting `CONFLUENCE_SITE_URL`/`CONFLUENCE_EMAIL`/`CONFLUENCE_API_TOKEN`
-overrides it per-field, no config-shape change needed either side.
+three `CONFLUENCE_*` override fields unset) reuses `JIRA_SITE_URL`/`JIRA_INTAKE_EMAIL`/
+`JIRA_INTAKE_API_TOKEN` — believed to be correct (same Atlassian Cloud tenant) but not confirmed
+with certainty. If that turns out to be wrong, setting
+`CONFLUENCE_SITE_URL`/`CONFLUENCE_EMAIL`/`CONFLUENCE_API_TOKEN` overrides it per-field, no
+config-shape change needed either side.
 
-Risk specific to this plan, still real after this resolution: because this server reads
-`JIRA_SITE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN` — variable names it doesn't own — a rename of those
-in `ai-intake-mcp`'s `GlobalConfig` would silently break this server's Confluence auth with no
-compile-time signal across the repo boundary. Worth a code comment in this repo's
-`src/config.ts` pointing at `ai-intake-mcp`'s `src/config.ts` as the source of truth for those
-names, so a future reader isn't left guessing why they're here.
+Risk specific to this plan, confirmed real during implementation, not just theoretical: this
+server reads `JIRA_SITE_URL`/`JIRA_INTAKE_EMAIL`/`JIRA_INTAKE_API_TOKEN` — variable names it
+doesn't own. An earlier draft of this plan (and the first implementation pass) used
+`JIRA_EMAIL`/`JIRA_API_TOKEN` instead, which don't exist in `ai-intake-mcp`'s actual `GlobalConfig`
+— silently breaking the shared-credentials default for anyone who hadn't also set the
+`CONFLUENCE_*` overrides. Caught and fixed by reading `ai-intake-mcp`'s `src/config.ts` directly
+rather than trusting this plan's prose. `src/config.ts` here now has a comment pointing at that
+file as the source of truth, but a future rename there still breaks this silently, with no
+compile-time signal across the repo boundary — re-verify these three names against
+`ai-intake-mcp`'s actual `loadGlobalConfig()` before relying on this default again.
 
 ### 5. Markdown → Confluence storage-format: hand-rolled converter, not a library
 
