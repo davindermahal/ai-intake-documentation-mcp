@@ -57,21 +57,21 @@ describe("ensure_guide_index", () => {
   it("reports conformant when CONFLUENCE_GUIDE_INDEX_URL already resolves to a real page", async () => {
     writeFileSync(
       envPath,
-      "JIRA_SITE_URL=https://example.atlassian.net\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/123456\n"
+      "JIRA_SITE_URL=https://example.atlassian.net\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/123456\n"
     );
     const result = await ensureGuideIndexTool.handler({});
     expect(textOf(result)).toEqual({ status: "conformant", url: "https://x/pages/123456" });
   });
 
   it("requires CONFLUENCE_SPACE_KEY to create a new index page", async () => {
-    writeFileSync(envPath, "JIRA_SITE_URL=https://example.atlassian.net\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\n");
+    writeFileSync(envPath, "JIRA_SITE_URL=https://example.atlassian.net\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\n");
     const result = await ensureGuideIndexTool.handler({});
     expect(result.isError).toBe(true);
     expect((textOf(result) as { error: string }).error).toMatch(/CONFLUENCE_SPACE_KEY/);
   });
 
   it("creates the index page and writes the URL back into the config file when unset", async () => {
-    writeFileSync(envPath, "JIRA_SITE_URL=https://example.atlassian.net\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\nCONFLUENCE_SPACE_KEY=ENG\n");
+    writeFileSync(envPath, "JIRA_SITE_URL=https://example.atlassian.net\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_SPACE_KEY=ENG\n");
     const result = await ensureGuideIndexTool.handler({});
     expect(textOf(result)).toEqual({ status: "initialized", url: "https://example.atlassian.net/wiki/spaces/ENG/pages/999/Guides" });
     expect(readFileSync(envPath, "utf-8")).toContain(

@@ -4,9 +4,11 @@ import { dirname, join } from "node:path";
 
 /**
  * Shared with `ai-intake-mcp` (Key decision #1 of the Confluence guide-authoring plan) — that repo
- * owns the JIRA_SITE_URL/JIRA_EMAIL/JIRA_API_TOKEN variable names read below, via its own
- * `src/config.ts`. There is no shared package between these two repos, so a rename over there
- * would silently break Confluence auth here with no compile-time signal.
+ * owns the JIRA_SITE_URL/JIRA_INTAKE_EMAIL/JIRA_INTAKE_API_TOKEN variable names read below, via its
+ * own `src/config.ts` (`loadGlobalConfig()`). There is no shared package between these two repos,
+ * so a rename over there would silently break Confluence auth here with no compile-time signal —
+ * confirm these three names still match that file before assuming the "reuse Jira creds" default
+ * actually works.
  */
 export function defaultConfigPath(): string {
   return join(homedir(), ".config", "ai-intake-mcp", ".env");
@@ -52,8 +54,8 @@ export function loadConfluenceConfig(configPath: string = defaultConfigPath()): 
   const get = (key: string): string | undefined => process.env[key] || file[key] || undefined;
   return {
     jiraSiteUrl: get("JIRA_SITE_URL"),
-    jiraEmail: get("JIRA_EMAIL"),
-    jiraApiToken: get("JIRA_API_TOKEN"),
+    jiraEmail: get("JIRA_INTAKE_EMAIL"),
+    jiraApiToken: get("JIRA_INTAKE_API_TOKEN"),
     confluenceSiteUrl: get("CONFLUENCE_SITE_URL"),
     confluenceEmail: get("CONFLUENCE_EMAIL"),
     confluenceApiToken: get("CONFLUENCE_API_TOKEN"),

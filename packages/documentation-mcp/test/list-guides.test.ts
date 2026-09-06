@@ -54,13 +54,13 @@ describe("list_guides", () => {
   });
 
   it("fetches and parses the index into guide rows", async () => {
-    writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/1\n");
+    writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/1\n");
     const result = await listGuidesTool.handler();
     expect(textOf(result)).toEqual({ guides: [{ title: "Symfony 4→5 Upgrade", description: "d", link: "https://x/pages/1", tags: ["symfony"] }] });
   });
 
   it("errors clearly when the configured index page can't be found", async () => {
-    writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/999\n");
+    writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/999\n");
     const result = await listGuidesTool.handler();
     expect(result.isError).toBe(true);
     expect((textOf(result) as { error: string }).error).toMatch(/index page not found/);

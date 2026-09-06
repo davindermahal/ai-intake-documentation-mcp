@@ -31,7 +31,7 @@ export const listGuidesTool = {
           {
             type: "text" as const,
             text: JSON.stringify(
-              { error: "not-configured: set JIRA_SITE_URL/JIRA_EMAIL/JIRA_API_TOKEN (or the CONFLUENCE_* overrides) in ~/.config/ai-intake-mcp/.env" },
+              { error: "not-configured: set JIRA_SITE_URL/JIRA_INTAKE_EMAIL/JIRA_INTAKE_API_TOKEN (or the CONFLUENCE_* overrides) in ~/.config/ai-intake-mcp/.env" },
               null,
               2
             ),

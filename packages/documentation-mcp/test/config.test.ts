@@ -31,14 +31,14 @@ describe("loadConfluenceConfig", () => {
   });
 
   it("parses KEY=value lines, ignoring comments and blanks", () => {
-    writeFileSync(envPath, "# comment\n\nJIRA_SITE_URL=https://example.atlassian.net\nJIRA_EMAIL=a@b.com\n");
+    writeFileSync(envPath, "# comment\n\nJIRA_SITE_URL=https://example.atlassian.net\nJIRA_INTAKE_EMAIL=a@b.com\n");
     const config = loadConfluenceConfig(envPath);
     expect(config.jiraSiteUrl).toBe("https://example.atlassian.net");
     expect(config.jiraEmail).toBe("a@b.com");
   });
 
   it("strips matching surrounding quotes from a value", () => {
-    writeFileSync(envPath, 'JIRA_API_TOKEN="tok with spaces"\n');
+    writeFileSync(envPath, 'JIRA_INTAKE_API_TOKEN="tok with spaces"\n');
     expect(loadConfluenceConfig(envPath).jiraApiToken).toBe("tok with spaces");
   });
 });

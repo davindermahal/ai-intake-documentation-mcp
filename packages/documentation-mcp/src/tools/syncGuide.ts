@@ -45,7 +45,7 @@ export const syncGuideTool = {
     const auth = resolveConfluenceAuth(config);
     if (!auth) {
       return errorResult(
-        "not-configured: set JIRA_SITE_URL/JIRA_EMAIL/JIRA_API_TOKEN (or the CONFLUENCE_* overrides) in ~/.config/ai-intake-mcp/.env"
+        "not-configured: set JIRA_SITE_URL/JIRA_INTAKE_EMAIL/JIRA_INTAKE_API_TOKEN (or the CONFLUENCE_* overrides) in ~/.config/ai-intake-mcp/.env"
       );
     }
 

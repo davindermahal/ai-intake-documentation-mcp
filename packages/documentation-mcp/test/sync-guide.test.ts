@@ -59,7 +59,7 @@ afterEach(() => {
 function writeFullConfig(indexPageId: string) {
   writeFileSync(
     envPath,
-    `JIRA_SITE_URL=https://x\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\nCONFLUENCE_SPACE_KEY=ENG\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/${indexPageId}\n`
+    `JIRA_SITE_URL=https://x\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_SPACE_KEY=ENG\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/${indexPageId}\n`
   );
 }
 
@@ -71,7 +71,7 @@ describe("sync_guide", () => {
   });
 
   it("errors when CONFLUENCE_SPACE_KEY is unset", async () => {
-    writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_EMAIL=a@b.com\nJIRA_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/2\n");
+    writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/2\n");
     const result = await syncGuideTool.handler({ title: "T", description: "d", content: "c", tags: [] });
     expect(result.isError).toBe(true);
     expect((textOf(result) as { error: string }).error).toMatch(/CONFLUENCE_SPACE_KEY/);
