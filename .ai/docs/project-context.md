@@ -13,6 +13,10 @@ development. Pointed at a project, it:
    both humans and AI coding agents have reliable context to work from, and every fact is
    traceable back to where it came from.
 
+The whole flow above is also packaged as a single `start_documentation` MCP prompt (in Claude
+Code, the slash command `/mcp__documentation-mcp__start_documentation`), so a caller doesn't need
+to know the tool call order by heart to kick off or resume onboarding.
+
 ## Why it's separate from `ai-intake-mcp`
 
 `ai-intake-mcp` is an existing, separately-repo'd Jira ticket-execution harness (fetches/comments
@@ -45,14 +49,20 @@ Built and committed: `detect_ai_dir`, `init_ai_scaffold`, `get_setup_status`, `s
 `record_evidence`, the legacy-`.ai/`-migration flow (`propose_ai_dir_migration` /
 `apply_ai_dir_migration`), evidence synthesis (`list_evidence` / `write_doc` /
 `write_context_chunk`), drift detection (`check_drift`), the plans lifecycle (`write_plan` /
-`list_plans` / `transition_plan`), and `upgrade_ai_dir` for schema/scaffold drift. `scan_project`
-has since been hardened based on real dry-run testing against two real, external projects (see
-`.ai/plans/completed/`): it now searches manifest/infra files up to 2 directories deep and detects
-existing AI-agent-instruction docs (`AGENTS.md`/`CLAUDE.md`/etc.), not just README/CONTRIBUTING.
+`list_plans` / `transition_plan`), `upgrade_ai_dir` for schema/scaffold drift, and the
+`start_documentation` prompt that walks a calling agent through the whole onboarding flow in one
+call. `scan_project` has since been hardened based on real dry-run testing against two real,
+external projects (see `.ai/plans/completed/`): it now searches manifest/infra files up to 2
+directories deep and detects existing AI-agent-instruction docs (`AGENTS.md`/`CLAUDE.md`/etc.),
+not just README/CONTRIBUTING.
 
-Still open: an automated test suite + CI for this repo, npm publishing (package scope is
-currently a placeholder), and filing the `ai-intake-harness` integration ticket externally. See
-`.ai/plans/active/` for current tracked work.
+Both `@davindermahal/context-schema` and `@davindermahal/documentation-mcp` are packaged for real
+distribution (`repository`/`publishConfig`/`files` set, per-package READMEs written) and have been
+published to npm at `0.1.1`.
+
+Still open: an automated test suite + CI for this repo (beyond the tests that exist per-package),
+and filing the `ai-intake-harness` integration ticket externally. See `.ai/plans/active/` for
+current tracked work.
 
 See `.ai/evidence/onboarding/` for the full founding-conversation record this was originally
 built from.

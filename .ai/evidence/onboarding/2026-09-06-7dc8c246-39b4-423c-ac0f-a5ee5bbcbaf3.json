@@ -1,0 +1,16 @@
+{
+  "id": "7dc8c246-39b4-423c-ac0f-a5ee5bbcbaf3",
+  "ticket_key": null,
+  "date": "2026-09-06T00:22:27.058Z",
+  "type": "new-rule",
+  "source": "agent-inferred",
+  "content": "Both packages were prepared for real npm publishing: package.json for @davindermahal/context-schema and @davindermahal/documentation-mcp each gained `files: [\"dist\"]`, a `repository` field pointing at github.com/davindermahal/ai-intake-documentation-mcp (with the correct `directory` subpath), and `publishConfig: {access: \"public\"}` (needed since both are scoped packages). Versions bumped 0.1.0 -> 0.1.1 for both. Each package also gained its own README.md (install/usage-facing, distinct from the root repo README and from .ai/docs). Root README.md gained a \"Kicking off documentation\" section documenting the new start_documentation slash command.",
+  "related_files": [
+    "packages/context-schema/package.json",
+    "packages/documentation-mcp/package.json",
+    "packages/context-schema/README.md",
+    "packages/documentation-mcp/README.md",
+    "README.md"
+  ],
+  "synthesized": true
+}

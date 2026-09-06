@@ -1,0 +1,14 @@
+{
+  "id": "657847db-3eb9-4aa2-a89f-7a45b8dbc55d",
+  "ticket_key": null,
+  "date": "2026-09-06T00:22:23.881Z",
+  "type": "new-rule",
+  "source": "agent-inferred",
+  "content": "Added a `start_documentation` MCP prompt (packages/documentation-mcp/src/prompts/startDocumentation.ts), registered in src/index.ts via server.registerPrompt alongside the existing server.registerTool loop. It takes no arguments and returns a single user-role instructional message walking the calling agent through the full onboarding flow in order: detect_ai_dir -> (init_ai_scaffold / migration / upgrade_ai_dir depending on status) -> ask the user what to document -> scan_project -> ask the user its open_questions plus anything else noticed missing (never guess) -> record_evidence for every answer/inference -> list_evidence -> write_doc/write_context_chunk -> get_setup_status summary. Tested in test/start-documentation-prompt.test.ts (checks it requires no args, mentions every tool in the flow, and tells the agent to ask rather than guess).",
+  "related_files": [
+    "packages/documentation-mcp/src/prompts/startDocumentation.ts",
+    "packages/documentation-mcp/src/index.ts",
+    "packages/documentation-mcp/test/start-documentation-prompt.test.ts"
+  ],
+  "synthesized": true
+}

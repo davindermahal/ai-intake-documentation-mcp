@@ -1,11 +1,22 @@
 {
   "name": "@davindermahal/documentation-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server that onboards a codebase for AI-agent-assisted development: scans the project, interviews the user, and maintains .ai/docs + .ai/context from an evidence archive",
   "license": "MIT",
   "type": "module",
   "bin": {
     "documentation-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davindermahal/ai-intake-documentation-mcp.git",
+    "directory": "packages/documentation-mcp"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod +x dist/index.js",

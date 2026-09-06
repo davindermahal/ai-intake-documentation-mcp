@@ -1,6 +1,6 @@
 {
   "name": "@davindermahal/context-schema",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared types, validators, and file I/O for the .ai/ project-context directory layout",
   "license": "MIT",
   "type": "module",
@@ -11,6 +11,17 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davindermahal/ai-intake-documentation-mcp.git",
+    "directory": "packages/context-schema"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

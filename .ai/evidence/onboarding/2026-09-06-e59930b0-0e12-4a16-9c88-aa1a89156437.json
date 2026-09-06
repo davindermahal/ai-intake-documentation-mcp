@@ -1,0 +1,13 @@
+{
+  "id": "e59930b0-0e12-4a16-9c88-aa1a89156437",
+  "ticket_key": null,
+  "date": "2026-09-06T00:22:28.582Z",
+  "type": "correction",
+  "source": "human",
+  "content": "@davindermahal/context-schema and @davindermahal/documentation-mcp have already been published to npm at version 0.1.1. This supersedes the previously-recorded \"still open: npm publishing (package scope is currently a placeholder)\" status in .ai/docs/project-context.md — publishing is done, not open work.",
+  "related_files": [
+    "packages/context-schema/package.json",
+    "packages/documentation-mcp/package.json"
+  ],
+  "synthesized": true
+}

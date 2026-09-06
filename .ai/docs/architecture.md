@@ -27,8 +27,15 @@ must be able to write conformant plan files too, once its integration lands.
 ## `@davindermahal/documentation-mcp`
 
 The MCP server itself (stdio transport, `@modelcontextprotocol/server` v2). Each tool is a plain
-`{ name, description, inputSchema, handler }` object under `src/tools/`, registered in
-`src/index.ts`. Tool call order encodes the actual dependency graph:
+`{ name, description, inputSchema, handler }` object under `src/tools/`, registered via
+`server.registerTool` in `src/index.ts`. `src/prompts/` holds MCP prompts the same way (plain
+`{ name, title, description, argsSchema, handler }` objects, registered via
+`server.registerPrompt`) — currently just `startDocumentation.ts`, whose handler returns a single
+user-role message containing the full onboarding walkthrough as instructional text rather than
+executing any tool itself. A prompt exists as a convenience wrapper around a known-good tool call
+order, not as a new capability — everything it tells the calling agent to do is already possible
+by calling the tools directly, which is why it carries no logic of its own beyond the instructions
+string. Tool call order encodes the actual dependency graph:
 
 `detect_ai_dir` → `init_ai_scaffold` (refuses on non-conformant; non-conformant instead goes
 `propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` / `record_evidence` (both
@@ -36,6 +43,8 @@ require an initialized manifest) → `list_evidence` → `write_doc` / `write_co
 `get_setup_status` / `check_drift` (both read the manifest back). Independently: `write_plan` →
 `list_plans` / `transition_plan` for the plans lifecycle (see below) — not part of the
 evidence/synthesis chain, since a plan isn't derived from evidence the way docs/context are.
+`start_documentation` wraps the whole detect → scan → ask → record → write sequence above into one
+prompt call so a caller doesn't need to memorize the order.
 
 `src/git.ts` holds `currentGitSha`/`changedFilesSince` (used by `scan_project` and `check_drift`;
 `execFileSync` with an argv array, not shell-interpolated strings, since `changedFilesSince`'s sha

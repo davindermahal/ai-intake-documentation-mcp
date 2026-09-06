@@ -75,6 +75,15 @@ This repo's own [`.mcp.json`](.mcp.json) already points at the local build, so i
 directly from a Claude Code session opened here. Once published to npm, `command`/`args` becomes
 `npx -y @davindermahal/documentation-mcp` instead of a local path — identical config in both clients.
 
+### Kicking off documentation
+
+Rather than calling tools one at a time, run the `start_documentation` prompt — in Claude Code
+that's the slash command `/mcp__documentation-mcp__start_documentation` (no arguments needed). It
+walks the agent through the whole flow in one go: detect/initialize `.ai/`, ask what to focus the
+scan on, run `scan_project`, ask you its `open_questions` (and anything else it notices missing)
+instead of guessing, record your answers as evidence, and write the resulting `.ai/docs` /
+`.ai/context`. Re-run it any time to pick up where you left off or after the code has moved on.
+
 ## Tools
 
 | Tool | Does |

@@ -16,6 +16,7 @@ import { writePlanTool } from "./tools/writePlan.js";
 import { listPlansTool } from "./tools/listPlans.js";
 import { transitionPlanTool } from "./tools/transitionPlan.js";
 import { upgradeAiDirTool } from "./tools/upgradeAiDir.js";
+import { startDocumentationPrompt } from "./prompts/startDocumentation.js";
 
 const TOOLS = [
   detectAiDirTool,
@@ -41,6 +42,16 @@ async function main() {
   for (const tool of TOOLS) {
     server.registerTool(tool.name, { description: tool.description, inputSchema: tool.inputSchema }, tool.handler as never);
   }
+
+  server.registerPrompt(
+    startDocumentationPrompt.name,
+    {
+      title: startDocumentationPrompt.title,
+      description: startDocumentationPrompt.description,
+      argsSchema: startDocumentationPrompt.argsSchema,
+    },
+    startDocumentationPrompt.handler as never,
+  );
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
