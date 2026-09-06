@@ -38,13 +38,17 @@ by calling the tools directly, which is why it carries no logic of its own beyon
 string. Tool call order encodes the actual dependency graph:
 
 `ensure_ai_dir` (absent → init, outdated → migrate/backfill, non-conformant → report only, ask the
-user, then `apply_ai_dir_migration`) → `scan_project` / `record_evidence` (both require an
-initialized manifest) → `list_evidence` → `write_doc` / `write_context_chunk` →
-`get_setup_status` / `check_drift` (both read the manifest back). Independently: `write_plan` →
-`list_plans` / `transition_plan` for the plans lifecycle (see below) — not part of the
-evidence/synthesis chain, since a plan isn't derived from evidence the way docs/context are.
-`start_documentation` wraps the whole ensure → scan → ask → record → write sequence above into one
-prompt call so a caller doesn't need to memorize the order.
+user, then `apply_ai_dir_migration`) → on a repo already scanned before (`conformant`/`upgraded`,
+as opposed to a fresh `initialized`), `check_drift` → if stale, confirm with the user before
+proceeding → `scan_project` / `record_evidence` (both require an initialized manifest) →
+`list_evidence` → `write_doc` / `write_context_chunk` → `get_setup_status` (reads the manifest
+back). Independently: `write_plan` → `list_plans` / `transition_plan` for the plans lifecycle (see
+below) — not part of the evidence/synthesis chain, since a plan isn't derived from evidence the way
+docs/context are. `start_documentation` wraps the whole ensure → check-drift → scan → ask → record
+→ write sequence above into one prompt call so a caller doesn't need to memorize the order, or
+notice staleness themselves by calling `check_drift`/`scan_project` as raw tools and being left to
+figure out the next step (the gap that motivated adding the drift check here rather than leaving it
+a separately-called tool only).
 
 `ensure_ai_dir` itself used to be four separate tools (`detect_ai_dir`, `init_ai_scaffold`,
 `upgrade_ai_dir`, `propose_ai_dir_migration`) before being folded into one. The fold only works

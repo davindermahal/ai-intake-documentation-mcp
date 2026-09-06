@@ -1,0 +1,15 @@
+{
+  "id": "c75765ed-dc10-4f25-b651-ced9fb9b94a8",
+  "ticket_key": null,
+  "date": "2026-09-06T02:18:31.539Z",
+  "type": "new-rule",
+  "source": "human",
+  "content": "UX feedback (from dogfooding this repo directly): calling check_drift then scan_project as separate raw tool calls left the user with a stale/drift result and, after scanning, no guidance on what to do with the open_questions/diff — they had to know to ask an agent to interview them and write docs. Decision (user chose \"extend start_documentation\" over \"add a separate sync_documentation prompt\", explicitly to keep one prompt to remember instead of two): start_documentation now opens with a drift check whenever ensure_ai_dir reports the repo was already scanned before (status \"conformant\" or \"upgraded\" — as opposed to \"initialized\" for a brand-new .ai/, which has nothing to diff against yet). If check_drift comes back stale, the agent must summarize changed_files and ask the user directly \"N files changed — want me to rescan and update the docs now?\" before calling scan_project; a \"no\" stops the flow with a reminder they can resume anytime. check_drift and scan_project were deliberately NOT merged into one tool — they have different costs/side effects (check_drift is a cheap read; scan_project mutates last_scan_sha and the cache file) and other flows may want to call check_drift alone. Implemented in src/prompts/startDocumentation.ts (step 2), covered by new assertions in test/start-documentation-prompt.test.ts checking for \"check_drift\"/\"stale\"/\"rescan\" in the instructions text.",
+  "related_files": [
+    "packages/documentation-mcp/src/prompts/startDocumentation.ts",
+    "packages/documentation-mcp/test/start-documentation-prompt.test.ts",
+    "README.md",
+    "packages/documentation-mcp/README.md"
+  ],
+  "synthesized": true
+}

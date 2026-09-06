@@ -6,13 +6,14 @@ describe("start_documentation prompt", () => {
     expect(startDocumentationPrompt.argsSchema.safeParse({}).success).toBe(true);
   });
 
-  it("walks the agent through detect -> scan -> ask -> record -> write", async () => {
+  it("walks the agent through detect -> drift check -> scan -> ask -> record -> write", async () => {
     const result = await startDocumentationPrompt.handler();
     const text = result.messages[0].content.text;
 
     expect(result.messages[0].role).toBe("user");
     for (const tool of [
       "ensure_ai_dir",
+      "check_drift",
       "scan_project",
       "open_questions",
       "record_evidence",
@@ -23,6 +24,13 @@ describe("start_documentation prompt", () => {
     ]) {
       expect(text).toContain(tool);
     }
+  });
+
+  it("confirms with the user before rescanning a repo that's already been scanned", async () => {
+    const result = await startDocumentationPrompt.handler();
+    const text = result.messages[0].content.text.toLowerCase();
+    expect(text).toContain("stale");
+    expect(text).toContain("rescan");
   });
 
   it("tells the agent to ask, not guess", async () => {

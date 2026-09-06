@@ -79,10 +79,13 @@ directly from a Claude Code session opened here. Once published to npm, `command
 
 Rather than calling tools one at a time, run the `start_documentation` prompt — in Claude Code
 that's the slash command `/mcp__documentation-mcp__start_documentation` (no arguments needed). It
-walks the agent through the whole flow in one go: detect/initialize `.ai/`, ask what to focus the
-scan on, run `scan_project`, ask you its `open_questions` (and anything else it notices missing)
-instead of guessing, record your answers as evidence, and write the resulting `.ai/docs` /
-`.ai/context`. Re-run it any time to pick up where you left off or after the code has moved on.
+walks the agent through the whole flow in one go: detect/initialize `.ai/`, and — on a repo that's
+already been scanned before — check for drift first and confirm with you before rescanning rather
+than dumping a raw diff and leaving you to figure out the next step. From there it asks what to
+focus the scan on, runs `scan_project`, asks you its `open_questions` (and anything else it
+notices missing) instead of guessing, records your answers as evidence, and writes the resulting
+`.ai/docs` / `.ai/context`. Re-run it any time — first pass or later resync — instead of calling
+`check_drift`/`scan_project` directly.
 
 ## Tools
 

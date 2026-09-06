@@ -28,12 +28,15 @@ Add it to your MCP client's config — no separate install step needed, `npx` ha
 
 ## Getting started
 
-Run the `start_documentation` prompt to kick off (or resume) onboarding — in Claude Code that's
-the slash command `/mcp__documentation-mcp__start_documentation`, no arguments required. It
-directs the calling agent to detect/initialize `.ai/`, ask what you want documented, scan the
-project, ask you its open questions (purpose, users, constraints, and anything else it notices
-missing) instead of guessing, record your answers as evidence, and write the resulting docs. Calling
-the tools below directly also works, in the order described under "Typical call order".
+Run the `start_documentation` prompt to kick off (or resume/resync) onboarding — in Claude Code
+that's the slash command `/mcp__documentation-mcp__start_documentation`, no arguments required. It
+directs the calling agent to detect/initialize `.ai/`, and — on a repo that's already been scanned
+before — check for drift first and confirm with you before rescanning rather than leaving you to
+notice staleness and drive `check_drift`/`scan_project` yourself. From there it asks what you want
+documented, scans the project, asks you its open questions (purpose, users, constraints, and
+anything else it notices missing) instead of guessing, records your answers as evidence, and
+writes the resulting docs. Calling the tools below directly also works, in the order described
+under "Typical call order".
 
 ## Tools
 
