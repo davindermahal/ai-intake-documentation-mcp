@@ -1,0 +1,225 @@
+# Add Confluence guide authoring and sync tools
+
+## Motivation
+
+Companion to `ai-intake-mcp`'s `.ai/plans/draft/curated-guide-retrieval.md`, which lets that
+server discover and fetch curated Confluence "how-to" guides during ticket planning (e.g. a ticket
+that says "upgrade to Symfony 5" gets matched against a "Symfony 4→5 Upgrade" row on a shared
+Confluence index page). That plan explicitly deferred the *authoring* side — someone still has to
+write these guides and get them onto the index in the right shape — and named this repo,
+`ai-intake-documentation-mcp`, as the place that should happen. This plan builds that half.
+
+Two guide shapes in scope:
+- **Version-upgrade guides** (Symfony 4→5, 5→6, ...) — reusable across every app hitting that hop,
+  no company- or repo-specific detail.
+- **`build-<xyz>-task` guides** — how to do a specific, recurring kind of task within a particular
+  repo (e.g. "build-add-migration-task" for one app's particular migration tooling). Repo-scoped by
+  content, but still published to the same shared Confluence index — see Open question 2 on how
+  that scoping is signaled.
+
+## Goals (v1)
+
+- New MCP tools/prompt in this server that draft a guide (following the sibling plan's authoring
+  conventions — atomic steps, exact commands, explicit checkpoints, clear done-criteria per step),
+  publish it to Confluence as a leaf page, and add/update its row on the shared index page.
+- A one-time bootstrap path for an org that doesn't have the Confluence space/index page yet —
+  today, per the sibling plan, nothing exists to point `CONFLUENCE_GUIDE_INDEX_URL` at until
+  someone creates it by hand. This plan builds that "someone."
+- Reuse `ai-intake-mcp`'s existing global config file (`~/.config/ai-intake-mcp/.env`) rather than
+  inventing a second config location — one Confluence setup for a developer using either or both
+  tools (see Key decision #1).
+- Keep the index format ai-intake-mcp already committed to (Title | Description | Link | Tags
+  table, flat, leaf-content-only links) — this plan is a producer for that exact shape, not a
+  redesign of it.
+
+## Out of scope (v1)
+
+- Raw/unbounded Confluence search, crawling, or any read-side retrieval logic — that's entirely
+  `ai-intake-mcp`'s side (its own `list_guides`/`fetch_guide`, per the sibling plan). This repo only
+  writes.
+- Deleting or archiving a guide/index row. A stale guide gets edited or superseded by a new row for
+  now; removal is a manual Confluence edit until there's a real need for a tool.
+- The automated lessons-learned feedback loop (a completed ticket's outcome rewriting a guide). Hook
+  point named in the sibling plan's Key decision #4; not built on either side yet.
+- Migrating any existing human-facing content already under a repo's `.ai/docs/` into a guide
+  automatically. Guide authoring starts from a conversation (via the new prompt), not a bulk import.
+
+## Design overview
+
+### 1. Config: shared `~/.config/ai-intake-mcp/.env`
+
+New fields, read the same way `ai-intake-mcp`'s `loadGlobalConfig()` reads `JIRA_SITE_URL`:
+
+```
+CONFLUENCE_SPACE_KEY=ENG
+CONFLUENCE_GUIDE_INDEX_URL=https://confluence.example.com/pages/GUIDE_INDEX
+```
+
+- `CONFLUENCE_GUIDE_INDEX_URL` is the same field the sibling plan already defined — shared, not
+  duplicated. If unset, `ensure_guide_index` (below) creates the page and writes it into this same
+  file, so a developer who starts with this repo's tools never has to hand-copy a URL into
+  `ai-intake-mcp`'s config.
+- `CONFLUENCE_SPACE_KEY` is new — needed to create a page at all (Confluence's create-content API
+  requires a target space). Required only for `ensure_guide_index`/`sync_guide`; everything else in
+  this server works exactly as it does today without it.
+- Auth and base site URL are **not** duplicated here — this server reuses `JIRA_SITE_URL`,
+  `JIRA_EMAIL`, and `JIRA_API_TOKEN` from the same file, per the sibling plan's Key decision #6
+  assumption that Jira and Confluence share one Atlassian tenant. See Key decision #2 for the risk
+  this creates.
+
+This server has never read a global config file before (it only reads/writes a target project's
+own `.ai/`) — this plan adds that capability for the first time, as its own small parser
+(`packages/documentation-mcp/src/config.ts`), not a shared package import from `ai-intake-mcp`
+(separate repos, separate release cycles, same precedent as the HTTP-transport work duplicating
+code across both rather than sharing it).
+
+### 2. Confluence write client
+
+`packages/documentation-mcp/src/confluence/client.ts` — a new, write-capable client, targeting
+`/wiki/rest/api/content` (REST API v1 — works on both Confluence Cloud and Server/Data Center,
+keeps parity with the sibling plan's read-side client choice). Supports:
+- `createPage({ spaceKey, title, storageBody, parentId? })`
+- `updatePage({ pageId, title, storageBody, version })` (Confluence's update API requires the
+  current version number — fetch-then-increment, standard optimistic-locking pattern for this API)
+- `getPageByTitle({ spaceKey, title })` — used to decide create vs. update
+
+Auth: Basic (`email:apiToken`, base64), same shape as `JiraClient`'s token path
+(`src/jira/client.ts:52-75` in `ai-intake-mcp`) — no cookie-auth fallback needed here, since guide
+authoring is expected to run with a real API token configured, not an interactive browser session.
+
+### 3. Guide content format
+
+Authored as markdown (agent- and human-readable while drafting), converted to Confluence's storage
+format (XHTML-ish) only at publish time. `packages/documentation-mcp/src/confluence/markdown-to-storage.ts`
+handles the small, known subset guides actually need — headings, numbered/bulleted steps, fenced
+code blocks, and a table (for the index itself) — not general CommonMark fidelity. See Open
+question 1 on hand-rolling vs. a library.
+
+### 4. Index table handling
+
+`packages/documentation-mcp/src/confluence/index-table.ts`: parses the index page's storage-format
+table into `{title, description, link, tags}[]` (same shape the sibling plan's `list_guides`
+produces, so the two independently-built parsers must agree on the table's exact shape — see
+Verification #3), and serializes an updated row set back into the same table markup for
+`sync_guide`'s upsert.
+
+### 5. New MCP tools
+
+- **`ensure_guide_index`** — idempotent bootstrap, modeled on this server's own `ensure_ai_dir`:
+  - `CONFLUENCE_GUIDE_INDEX_URL` set and resolves to a real page → report `status: "conformant"`.
+  - Unset → create a new page (title configurable, default e.g. "AI Agent Guides") in
+    `CONFLUENCE_SPACE_KEY` with an empty four-column table, write the resulting URL into
+    `~/.config/ai-intake-mcp/.env`, report `status: "initialized"` plus the URL.
+- **`list_guides`** — fetch + parse the index (via `index-table.ts`), for pre-authoring checks
+  ("does something like this already exist?"). Read-only; independent of `ai-intake-mcp`'s own
+  tool of the same name (different MCP server, no collision — each host namespaces by server).
+- **`sync_guide`** — the actual publish tool.
+  - Input: `title`, `description`, `content` (markdown), `tags` (array), optional `page_id` (to
+    force-update a specific known page rather than match by title).
+  - Behavior: convert `content` to storage format; find the existing leaf page by `page_id` if
+    given, else by exact `title` match within `CONFLUENCE_SPACE_KEY`; create it (as a child of the
+    index page, Key decision #3) or update it; then upsert its row on the index table (replace on
+    exact title match, else append).
+  - Output: the guide's page URL and whether it was created or updated.
+
+### 6. New prompt: `write_guide`
+
+Interview-driven, same style as this server's existing `start_documentation` prompt:
+
+1. Ask what the guide is for — a version-upgrade guide, or a `build-<xyz>-task` guide for a
+   specific repo — and get a working title.
+2. Call `ensure_guide_index` first, so there's always a real index to publish into.
+3. Call `list_guides`; if something close already exists, ask the user whether to update that page
+   (pass its link back in as `page_id`) or write a new one.
+4. Gather the actual steps — interview the user, and/or (if this session already has repo context,
+   e.g. documenting a task just completed) read the relevant code/evidence — following the sibling
+   plan's authoring notes: atomic steps, exact commands not descriptions, explicit test/checkpoint
+   steps, clear done-criteria per step.
+5. Draft the full content and show it to the user for confirmation. **Never publish without an
+   explicit yes** — same "don't guess or fabricate on the user's behalf" discipline as
+   `start_documentation`.
+6. Call `sync_guide`.
+7. Report the resulting URL back to the user.
+
+## Key decisions
+
+### 1. Shared config file, not a second config directory
+
+Agreed together with the sibling plan (now that plan's Key decision #7): this server reads/writes
+`~/.config/ai-intake-mcp/.env` rather than `~/.config/ai-intake-documentation-mcp/.env`. One
+Confluence setup, whether a developer uses one of these tools or both. The tradeoff: this server
+now has a real (if narrow) coupling to a config file whose name and variable schema live in a
+different repo's plan, not this one — see Key decision #2's related risk.
+
+### 2. Reuses Jira credentials for Confluence auth — same assumption, same caveat, now duplicated
+
+Like the sibling plan's Key decision #6, this assumes Jira and Confluence are the same Atlassian
+tenant with credentials that work for both. Flagged the same way: confirm at review, not blocking
+now. New risk specific to this plan: because this server reads `JIRA_SITE_URL`/`JIRA_EMAIL`/
+`JIRA_API_TOKEN` — variable names it doesn't own — a rename of those in `ai-intake-mcp`'s
+`GlobalConfig` would silently break this server's Confluence auth with no compile-time signal
+across the repo boundary. Worth a code comment pointing at the sibling repo's `src/config.ts` as
+the source of truth for those names, so a future reader isn't left guessing why they're here.
+
+### 3. New guide pages are created as children of the index page
+
+Default `parentId` for `createPage` is the index page itself. Purely organizational (makes guides
+browsable as a page tree in the Confluence UI, easy to find outside the index table too) — it does
+**not** change the sibling plan's "no recursion" retrieval rule, since `ai-intake-mcp` only ever
+follows the index table's explicit `Link` column, never lists a page's children.
+
+### 4. `sync_guide` matches by exact title string, no separate guide ID
+
+Good enough for v1 — same "don't build for a cost that hasn't been observed" reasoning as the
+sibling plan's no-persistent-cache decision (Key decision #3 there). If title collisions or
+renames become a real problem, `sync_guide`'s existing optional `page_id` parameter is already the
+escape hatch (explicit page targeting bypasses title matching entirely) — no rearchitecture needed
+to add stronger identity later.
+
+## Open questions
+
+1. **Markdown → Confluence storage-format conversion: hand-roll or use a library?** Guides only
+   need a narrow subset (headings, ordered/unordered lists, fenced code blocks, one table shape for
+   the index) — leaning toward a small hand-rolled converter to avoid a new dependency, given the
+   subset is both small and fully known in advance. Confirm at review before writing it.
+2. **How does a `build-<xyz>-task` guide signal which repo it's about?** The index table still only
+   has Title/Description/Link/Tags (Goals, above — no format change). Leaning toward: no new
+   column, just a naming convention the `write_guide` prompt enforces (e.g. title
+   `"Build: <repo-name> — <task>"`), consistent with the sibling plan's Key decision #2 preference
+   for reusing existing mechanisms over adding new structured fields. Confirm this reads well
+   enough for `ai-intake-mcp`'s matching agent to actually find repo-scoped guides during planning.
+3. **Confluence API permissions**: does the API token needs space-admin/edit rights on the guides
+   space beyond whatever a normal Jira/Confluence user already has? Not knowable in the abstract —
+   verify at the first real dry run (Verification #2).
+4. **Confluence Cloud vs. Server/Data Center**: REST API v1 (`/wiki/rest/api/content`) works on
+   both, which is why it's chosen over the Cloud-only v2/ADF API — confirm this holds for whichever
+   Confluence deployment is actually in use at review.
+
+## Implementation steps (draft)
+
+1. Add `packages/documentation-mcp/src/config.ts` — parses `~/.config/ai-intake-mcp/.env` (its own
+   small parser, not imported from `ai-intake-mcp`), exposing site URL, email, API token, space
+   key, and guide index URL.
+2. Add `packages/documentation-mcp/src/confluence/client.ts` (create/get/update page) and
+   `markdown-to-storage.ts` (content conversion).
+3. Add `packages/documentation-mcp/src/confluence/index-table.ts` (parse + serialize the index
+   table).
+4. Add `packages/documentation-mcp/src/tools/ensureGuideIndex.ts`, `listGuides.ts`, `syncGuide.ts`,
+   and register them in `packages/documentation-mcp/src/index.ts`.
+5. Add `packages/documentation-mcp/src/prompts/writeGuide.ts` and register it.
+6. Resolve Open questions 1 and 2 at review before writing the converter and the prompt's title
+   convention, respectively.
+7. Validate end-to-end against a real Confluence space, using a Symfony upgrade guide as the first
+   real case (matches the sibling plan's own proof case) — see Verification.
+
+## Verification
+
+1. `npm run build && npm test` — unit test the storage-format converter and the index-table
+   parse/serialize logic with fixed fixtures; fake the Confluence client's fetch (injectable, same
+   testability pattern as `ai-intake-mcp`'s `JiraClient`) so no real HTTP runs in unit tests.
+2. Real dry run against an actual Confluence space (manual — needs live org credentials, can't be
+   automated in this environment): `ensure_guide_index` creates the index page from nothing, then
+   `sync_guide` publishes a real guide; confirm both render correctly in the Confluence UI.
+3. Round-trip check: once `ai-intake-mcp`'s `curated-guide-retrieval.md` plan is implemented,
+   confirm its `list_guides`/`fetch_guide` can correctly read a guide this server published —
+   proves the two independently-built index-table parsers agree on the exact same shape.

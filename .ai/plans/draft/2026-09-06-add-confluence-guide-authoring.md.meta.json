@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-06-add-confluence-guide-authoring",
+  "title": "Add Confluence guide authoring and sync tools",
+  "date": "2026-09-06T23:18:22.000Z",
+  "description": "Companion to ai-intake-mcp's curated-guide-retrieval.md: new tools/prompt in documentation-mcp (ensure_guide_index, list_guides, sync_guide, write_guide) that draft a guide, publish it to Confluence as a leaf page, and add/update its row on the shared index page ai-intake-mcp reads from during ticket planning.",
+  "ticket_key": null,
+  "status": "draft",
+  "created_by": "claude-code",
+  "approved_at": null,
+  "updated_at": "2026-09-06T23:18:22.000Z"
+}
