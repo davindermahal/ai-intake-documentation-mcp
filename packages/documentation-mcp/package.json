@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "documentation-mcp": "./dist/index.js"
+    "documentation-mcp": "dist/index.js"
   },
   "files": [
     "dist"
