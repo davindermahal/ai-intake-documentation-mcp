@@ -17,6 +17,57 @@ The whole flow above is also packaged as a single `start_documentation` MCP prom
 Code, the slash command `/mcp__documentation-mcp__start_documentation`), so a caller doesn't need
 to know the tool call order by heart to kick off or resume onboarding.
 
+## Why it exists
+
+READMEs go stale, tribal knowledge lives in people's heads, and hand-maintained docs drift from
+what the code actually does — which leaves both new contributors and AI coding agents working
+from unreliable context. This project's answer is to never guess at what only a human knows, and
+to make every documented fact traceable back to an append-only evidence entry, so staleness is
+detectable (`check_drift`, `needs_resync`) instead of silent.
+
+## Who it's for
+
+- Developers/teams who want reliable AI-agent context for their own codebase, used directly from
+  any MCP client (Claude Code, Gemini CLI, or others).
+- The author (davindermahal), dogfooding it on this repo itself — the primary real-world usage
+  so far, recorded under `.ai/evidence/onboarding/`.
+- Downstream, `ai-intake-mcp` (a separate Jira ticket-execution harness) as a planned future
+  consumer — reading `.ai/context/` during planning and calling `record_evidence` during
+  implementation, once that integration lands (not yet built).
+
+## What "done" looks like
+
+There's no single "done" — this is an ongoing tool, not a one-shot deliverable. Two different
+senses of success:
+
+- **Per release milestone**: tracked in "Current status" below, and via `.ai/plans/`.
+- **Per onboarding run**: a caller runs `start_documentation` once and gets accurate,
+  evidence-traceable docs without needing to memorize tool call order, and can later detect
+  staleness via `check_drift` (code has moved past the last scan) and `needs_resync` (evidence
+  has moved past the last doc synthesis) — two separate, independently-tracked concerns.
+
+## Constraints
+
+Architectural invariants rather than compliance/performance/security requirements (this is a
+local, stdio-transport dev tool — it never handles end-user data):
+
+- Never write or touch `.ai/intake-mcp.json` — owned exclusively by `ai-intake-mcp`.
+- Evidence entries (`.ai/evidence/**/*.json`) are append-only and never rewritten in place.
+- The `.ai/` file layout must never drift between this server and `ai-intake-mcp` — enforced by
+  both depending on the shared `@davindermahal/context-schema` package rather than duplicating
+  types.
+- Migrating pre-existing/foreign `.ai/` content must be non-destructive: copy-first, originals
+  kept unless `remove_originals` is explicitly set.
+
+## Deployment
+
+No infrastructure: both packages are published to npm (`@davindermahal/context-schema`,
+`@davindermahal/documentation-mcp`, currently `0.1.1`) and run as a local stdio-transport MCP
+server subprocess, launched from an MCP client's own config (`npx -y
+@davindermahal/documentation-mcp`). Nothing to provision or host — CI
+(`.github/workflows/ci.yml`) only builds and tests on push/PR to `main`; it doesn't deploy
+anything.
+
 ## Why it's separate from `ai-intake-mcp`
 
 `ai-intake-mcp` is an existing, separately-repo'd Jira ticket-execution harness (fetches/comments

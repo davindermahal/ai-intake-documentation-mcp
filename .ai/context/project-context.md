@@ -15,6 +15,16 @@
 - Rule: all Jira ticket work and all planning work must have a plan file under `.ai/plans/`
   (`draft`/`active`/`completed`), written via `write_plan`. This is a hard requirement, not a
   nice-to-have — `ai-intake-harness` will write plans here too once its integration lands.
+- Rule: legacy-`.ai/` migration (`apply_ai_dir_migration`) must stay non-destructive — copy-first,
+  originals kept unless `remove_originals` is explicitly set.
+- Users: developers/teams onboarding their own codebase via any MCP client; the author
+  dogfooding this repo itself; `ai-intake-mcp` as a planned future integration consumer (reading
+  `.ai/context/` during planning, calling `record_evidence` during implementation — not built yet).
+- No compliance/perf/security constraints beyond the architectural invariants above — this is a
+  local, stdio-transport dev tool with no end-user data.
+- Deployment: no infra — published to npm, run via `npx -y @davindermahal/documentation-mcp` as a
+  local stdio subprocess of the MCP client. CI (`.github/workflows/ci.yml`) only builds+tests on
+  push/PR to `main`; it does not deploy anything.
 - The `start_documentation` MCP prompt (`src/prompts/startDocumentation.ts`) packages the whole
   ensure → scan → ask → record → write flow as one callable prompt, no arguments. It is a plain
   instructional wrapper (returns one user-role text message) — it does not call any tool itself,

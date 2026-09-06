@@ -2,8 +2,11 @@
   "id": "project-context.md",
   "title": "Project context (agent-facing)",
   "area": [
-    "overview"
+    "core",
+    "scope"
   ],
-  "updated_at": "2026-09-06T00:24:08.124Z",
-  "source_evidence_ids": []
+  "updated_at": "2026-09-06T02:09:47.990Z",
+  "source_evidence_ids": [
+    "94625097-7058-49ba-b440-d5d440a01a91"
+  ]
 }
