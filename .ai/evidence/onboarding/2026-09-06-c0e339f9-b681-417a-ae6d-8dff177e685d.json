@@ -1,0 +1,14 @@
+{
+  "id": "c0e339f9-b681-417a-ae6d-8dff177e685d",
+  "date": "2026-09-06T02:28:21.717Z",
+  "synthesized": false,
+  "related_files": [
+    "packages/documentation-mcp/src/prompts/startDocumentation.ts",
+    ".ai/docs/project-context.md",
+    ".ai/docs/architecture.md"
+  ],
+  "ticket_key": null,
+  "type": "raw-note",
+  "source": "agent-inferred",
+  "content": "Resync pass on 2026-09-05 (commit 83cf8a6): reviewed .ai/docs/project-context.md and architecture.md against the two changes since last scan (31aacba..83cf8a6 — start_documentation prompt updated to check drift and confirm before resyncing, plus README updates). Docs already accurately describe the current behavior; no content changes needed, only the manifest's last_scan_sha was stale. scan_project re-run to refresh it."
+}
