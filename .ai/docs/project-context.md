@@ -45,16 +45,19 @@ clients' config files.
 
 ## Current status
 
-Built and committed: `detect_ai_dir`, `init_ai_scaffold`, `get_setup_status`, `scan_project`,
-`record_evidence`, the legacy-`.ai/`-migration flow (`propose_ai_dir_migration` /
-`apply_ai_dir_migration`), evidence synthesis (`list_evidence` / `write_doc` /
-`write_context_chunk`), drift detection (`check_drift`), the plans lifecycle (`write_plan` /
-`list_plans` / `transition_plan`), `upgrade_ai_dir` for schema/scaffold drift, and the
-`start_documentation` prompt that walks a calling agent through the whole onboarding flow in one
-call. `scan_project` has since been hardened based on real dry-run testing against two real,
-external projects (see `.ai/plans/completed/`): it now searches manifest/infra files up to 2
-directories deep and detects existing AI-agent-instruction docs (`AGENTS.md`/`CLAUDE.md`/etc.),
-not just README/CONTRIBUTING.
+Built and committed: `ensure_ai_dir` (a single tool that detects `.ai/`'s state and, for the two
+states that need no human input, fixes it in the same call — absent → scaffold, outdated →
+migrate/backfill; non-conformant only reports what it found), `get_setup_status`, `scan_project`,
+`record_evidence`, the legacy-`.ai/`-migration flow (`apply_ai_dir_migration`, the one remaining
+step that still needs an explicit human `confirm: true`), evidence synthesis (`list_evidence` /
+`write_doc` / `write_context_chunk`), drift detection (`check_drift`), the plans lifecycle
+(`write_plan` / `list_plans` / `transition_plan`), and the `start_documentation` prompt that walks
+a calling agent through the whole onboarding flow in one go. `ensure_ai_dir` used to be four
+separate tools (`detect_ai_dir`/`init_ai_scaffold`/`upgrade_ai_dir`/`propose_ai_dir_migration`)
+before being folded down to reduce the tool count exposed to a calling agent. `scan_project` has
+since been hardened based on real dry-run testing against two real, external projects (see
+`.ai/plans/completed/`): it now searches manifest/infra files up to 2 directories deep and detects
+existing AI-agent-instruction docs (`AGENTS.md`/`CLAUDE.md`/etc.), not just README/CONTRIBUTING.
 
 Both `@davindermahal/context-schema` and `@davindermahal/documentation-mcp` are packaged for real
 distribution (`repository`/`publishConfig`/`files` set, per-package READMEs written) and have been

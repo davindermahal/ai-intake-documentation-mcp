@@ -88,12 +88,10 @@ instead of guessing, record your answers as evidence, and write the resulting `.
 
 | Tool | Does |
 |---|---|
-| `detect_ai_dir` | Reports `absent` / `conformant` / `outdated` (ours, but stale — fix with `upgrade_ai_dir`) / `non-conformant` (not ours at all — fix with the migration flow) for a repo's `.ai/` — read-only, always safe to call. |
-| `init_ai_scaffold` | Creates `.ai/{docs,context,evidence,cache}` + a manifest. Refuses if `.ai/` already has non-conformant content. Idempotent once conformant. |
+| `ensure_ai_dir` | Gets `.ai/` into a good state in one call: `absent` → creates the scaffold + manifest, `outdated` (ours, but stale) → migrates/backfills automatically, `conformant` → no-op. `non-conformant` (foreign content already there) is never touched automatically — returns the files found so you can ask before calling `apply_ai_dir_migration`. Always call this first. |
 | `get_setup_status` | Reads back the manifest: last scan/synthesis time, pending evidence counts, `needs_resync`. |
 | `scan_project` | Read-only repo scan: manifest files and infra signals up to 2 directories deep (catches a frontend/api-style split, not just root), root-only CI config, existing human docs (README/CONTRIBUTING) and existing AI-agent docs (`AGENTS.md`/`CLAUDE.md`/`.cursorrules`/`.github/copilot-instructions.md`) separately, plus open questions only a human can answer. Requires `.ai/` to be initialized first. |
 | `record_evidence` | Appends an immutable evidence entry (`new-rule` / `correction` / `clarification` / `raw-note`; source `human` / `agent-inferred` / `legacy-doc` / `existing-docs`). A `correction` sets `needs_resync`. Requires `.ai/` to be initialized first. |
-| `propose_ai_dir_migration` | Read-only. If `.ai/` is non-conformant, lists every file found under it with size — no auto-classification. |
 | `apply_ai_dir_migration` | Ingests a non-conformant `.ai/`'s content as legacy evidence (`source: "legacy-doc"`), then scaffolds normally. Requires `confirm: true`; originals are kept unless `remove_originals` is set. |
 | `list_evidence` | Reads back evidence entries (unsynthesized by default) for the calling agent to review before writing docs/context. |
 | `write_doc` | Commits agent-authored markdown to `.ai/docs/<path>`. Marks any referenced evidence synthesized and recomputes the manifest's pending counters. |
@@ -102,13 +100,12 @@ instead of guessing, record your answers as evidence, and write the resulting `.
 | `write_plan` | Creates a plan file — **required for all Jira ticket work and all planning work**. Starts `draft` by default; filename is `<date>-<slug>.md` (or `<ticket_key>-<date>-<slug>.md`), auto-deduplicated on collision. |
 | `list_plans` | Returns full plan metadata + content, optionally filtered by `status` and/or `ticket_key`. |
 | `transition_plan` | Moves a plan between `draft`/`active`/`completed` — physically relocates the file, not just a status flag. Sets `approved_at` the first (and only the first) time a plan reaches `active`. |
-| `upgrade_ai_dir` | Fixes an `outdated` `.ai/`: migrates the manifest through `MANIFEST_MIGRATIONS` to the current schema version, and unconditionally backfills any missing `SCAFFOLD_DIRS` directory. Refuses (pointing to the right tool) if `.ai/` is absent, already conformant, or non-conformant. |
 
-Typical call order: `detect_ai_dir` → (`init_ai_scaffold` or, if non-conformant,
-`propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as
-needed) → `list_evidence` → `write_doc` / `write_context_chunk` → `get_setup_status` /
-`check_drift`. Independently, for any ticket or planning work: `write_plan` →
-`transition_plan` (draft → active on approval → completed when done).
+Typical call order: `ensure_ai_dir` → (if it reports `non-conformant`, ask the user, then
+`apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as needed) → `list_evidence` →
+`write_doc` / `write_context_chunk` → `get_setup_status` / `check_drift`. Independently, for any
+ticket or planning work: `write_plan` → `transition_plan` (draft → active on approval → completed
+when done).
 
 ## Relationship to `ai-intake-mcp`
 
@@ -125,11 +122,11 @@ calling `record_evidence` during implementation — is tracked as future work, n
 - `npm run build` — builds both packages (`tsc`).
 - `npm run clean` — removes `dist/` in both packages.
 - `npm test` — runs the [Vitest](https://vitest.dev) suite (`packages/*/test/**/*.test.ts`),
-  covering everything the manual smoke-test scripts used to: `detect_ai_dir`/`init_ai_scaffold`
-  states, `scan_project`'s depth search and `existing_agent_docs` detection, evidence recording +
-  synthesis, the legacy-`.ai/` migration flow, the plans lifecycle (including the collision-suffix
-  case), and `upgrade_ai_dir` (missing-directory backfill, an unmigratable `schema_version` failing
-  cleanly, non-conformant repos left untouched).
+  covering everything the manual smoke-test scripts used to: every `ensure_ai_dir` state (absent,
+  outdated with missing-directory backfill, an unmigratable `schema_version` failing cleanly,
+  non-conformant repos left untouched), `scan_project`'s depth search and `existing_agent_docs`
+  detection, evidence recording + synthesis, the legacy-`.ai/` migration flow, and the plans
+  lifecycle (including the collision-suffix case).
 - CI (`.github/workflows/ci.yml`) runs `npm run build` + `npm test` on push/PR to `main`.
 
 ## License

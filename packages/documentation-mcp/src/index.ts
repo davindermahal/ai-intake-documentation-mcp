@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { detectAiDirTool } from "./tools/detectAiDir.js";
-import { initAiScaffoldTool } from "./tools/initAiScaffold.js";
+import { ensureAiDirTool } from "./tools/ensureAiDir.js";
 import { getSetupStatusTool } from "./tools/getSetupStatus.js";
 import { scanProjectTool } from "./tools/scanProject.js";
 import { recordEvidenceTool } from "./tools/recordEvidence.js";
-import { proposeAiDirMigrationTool } from "./tools/proposeAiDirMigration.js";
 import { applyAiDirMigrationTool } from "./tools/applyAiDirMigration.js";
 import { listEvidenceTool } from "./tools/listEvidence.js";
 import { writeDocTool } from "./tools/writeDoc.js";
@@ -15,16 +13,13 @@ import { checkDriftTool } from "./tools/checkDrift.js";
 import { writePlanTool } from "./tools/writePlan.js";
 import { listPlansTool } from "./tools/listPlans.js";
 import { transitionPlanTool } from "./tools/transitionPlan.js";
-import { upgradeAiDirTool } from "./tools/upgradeAiDir.js";
 import { startDocumentationPrompt } from "./prompts/startDocumentation.js";
 
 const TOOLS = [
-  detectAiDirTool,
-  initAiScaffoldTool,
+  ensureAiDirTool,
   getSetupStatusTool,
   scanProjectTool,
   recordEvidenceTool,
-  proposeAiDirMigrationTool,
   applyAiDirMigrationTool,
   listEvidenceTool,
   writeDocTool,
@@ -33,7 +28,6 @@ const TOOLS = [
   writePlanTool,
   listPlansTool,
   transitionPlanTool,
-  upgradeAiDirTool,
 ];
 
 async function main() {

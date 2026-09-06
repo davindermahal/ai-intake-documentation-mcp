@@ -1,6 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import * as z from "zod";
 import { CURRENT_SCHEMA_VERSION, ManifestSchema, SCAFFOLD_DIRS, readManifestRaw, resolveAiDir } from "@davindermahal/context-schema";
 
 export type AiDirStatus =
@@ -39,20 +38,3 @@ export function detectAiDir(repoRoot: string): AiDirStatus {
 
   return { status: "non-conformant", found: readdirSync(aiDir) };
 }
-
-export const detectAiDirTool = {
-  name: "detect_ai_dir",
-  description:
-    "Checks whether the repo's .ai/ directory is absent, conformant with the expected schema, " +
-    "outdated (recognizably ours, but an older schema_version and/or missing directories the " +
-    "current version expects — fix with upgrade_ai_dir), or non-conformant (something's there " +
-    "that isn't ours at all — fix with propose_ai_dir_migration/apply_ai_dir_migration). Never " +
-    "modifies anything. Always call this before init_ai_scaffold.",
-  inputSchema: z.object({
-    repo_root: z.string().optional().describe("Absolute path to the repo root. Defaults to the server's cwd."),
-  }),
-  handler: async ({ repo_root }: { repo_root?: string }) => {
-    const result = detectAiDir(repo_root ?? process.cwd());
-    return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
-  },
-};

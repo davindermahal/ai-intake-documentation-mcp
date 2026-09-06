@@ -12,8 +12,7 @@ describe("start_documentation prompt", () => {
 
     expect(result.messages[0].role).toBe("user");
     for (const tool of [
-      "detect_ai_dir",
-      "init_ai_scaffold",
+      "ensure_ai_dir",
       "scan_project",
       "open_questions",
       "record_evidence",

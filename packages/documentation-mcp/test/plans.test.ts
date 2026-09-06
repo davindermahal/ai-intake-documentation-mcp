@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { initAiScaffoldTool } from "../src/tools/initAiScaffold.js";
+import { ensureAiDirTool } from "../src/tools/ensureAiDir.js";
 import { writePlanTool } from "../src/tools/writePlan.js";
 import { listPlansTool } from "../src/tools/listPlans.js";
 import { transitionPlanTool } from "../src/tools/transitionPlan.js";
@@ -9,7 +9,7 @@ let repo: string;
 
 beforeEach(async () => {
   repo = mkTempRepo();
-  await initAiScaffoldTool.handler({ repo_root: repo });
+  await ensureAiDirTool.handler({ repo_root: repo });
 });
 
 afterEach(() => {

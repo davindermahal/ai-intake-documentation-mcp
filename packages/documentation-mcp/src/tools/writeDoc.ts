@@ -31,7 +31,7 @@ export const writeDocTool = {
     const repoRoot = repo_root ?? process.cwd();
     if (!readManifest(repoRoot)) {
       return {
-        content: [{ type: "text" as const, text: JSON.stringify({ error: "not-initialized: run init_ai_scaffold first" }, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify({ error: "not-initialized: run ensure_ai_dir first" }, null, 2) }],
         isError: true,
       };
     }

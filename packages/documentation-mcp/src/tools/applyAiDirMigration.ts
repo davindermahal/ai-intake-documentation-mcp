@@ -17,9 +17,9 @@ export const applyAiDirMigrationTool = {
   name: "apply_ai_dir_migration",
   description:
     "Ingests a non-conformant .ai/ directory's existing content as legacy evidence, then creates the " +
-    "standard scaffold. Re-walks the directory itself rather than trusting a prior propose call, so " +
-    "it never acts on stale state. Requires confirm:true. Originals are left on disk unless " +
-    "remove_originals is set — copy-first, delete-only-on-request.",
+    "standard scaffold. Re-walks the directory itself rather than trusting ensure_ai_dir's earlier " +
+    "listing, so it never acts on stale state. Requires confirm:true. Originals are left on disk " +
+    "unless remove_originals is set — copy-first, delete-only-on-request.",
   inputSchema: z.object({
     repo_root: z.string().optional().describe("Absolute path to the repo root. Defaults to the server's cwd."),
     confirm: z.boolean().describe("Must be true — an explicit acknowledgement this will ingest and scaffold."),

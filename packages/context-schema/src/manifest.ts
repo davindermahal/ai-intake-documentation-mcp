@@ -42,7 +42,7 @@ export function readManifest(repoRoot: string): SetupManifest | null {
 
 /**
  * Unvalidated read — returns the parsed JSON as-is, or null if the file is missing or isn't
- * valid JSON. Used by detect_ai_dir/upgrade_ai_dir to distinguish "ours, but an older schema
+ * valid JSON. Used by ensure_ai_dir's detection step to distinguish "ours, but an older schema
  * version" (still worth reading) from "not recognizable at all" (readManifest would throw for
  * both cases, which loses that distinction).
  */

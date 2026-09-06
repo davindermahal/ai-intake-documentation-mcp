@@ -1,8 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { detectAiDirTool } from "../src/tools/detectAiDir.js";
-import { proposeAiDirMigrationTool } from "../src/tools/proposeAiDirMigration.js";
+import { ensureAiDirTool } from "../src/tools/ensureAiDir.js";
 import { applyAiDirMigrationTool } from "../src/tools/applyAiDirMigration.js";
 import { listEvidenceTool } from "../src/tools/listEvidence.js";
 import { cleanupRepo, mkTempRepo, textOf } from "./helpers.js";
@@ -21,17 +20,6 @@ afterEach(() => {
   cleanupRepo(repo);
 });
 
-describe("propose_ai_dir_migration", () => {
-  it("lists every file under a non-conformant .ai/ with no classification", async () => {
-    const result = textOf(await proposeAiDirMigrationTool.handler({ repo_root: repo })) as {
-      status: string;
-      files: Array<{ path: string; bytes: number }>;
-    };
-    expect(result.status).toBe("migration-available");
-    expect(result.files.map((f) => f.path).sort()).toEqual([join("misc", "readme.txt"), "notes.md"]);
-  });
-});
-
 describe("apply_ai_dir_migration", () => {
   it("refuses without confirm: true", async () => {
     const result = await applyAiDirMigrationTool.handler({ repo_root: repo, confirm: false, remove_originals: false });
@@ -44,7 +32,7 @@ describe("apply_ai_dir_migration", () => {
     ) as { status: string; ingested: number; removed_originals: boolean };
     expect(result).toEqual({ status: "migrated", ingested: 2, removed_originals: true });
 
-    const detected = textOf(await detectAiDirTool.handler({ repo_root: repo }));
+    const detected = textOf(await ensureAiDirTool.handler({ repo_root: repo }));
     expect(detected).toEqual({ status: "conformant" });
 
     const evidence = textOf(await listEvidenceTool.handler({ repo_root: repo })) as Array<{

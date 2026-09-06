@@ -37,14 +37,23 @@ order, not as a new capability — everything it tells the calling agent to do i
 by calling the tools directly, which is why it carries no logic of its own beyond the instructions
 string. Tool call order encodes the actual dependency graph:
 
-`detect_ai_dir` → `init_ai_scaffold` (refuses on non-conformant; non-conformant instead goes
-`propose_ai_dir_migration` → `apply_ai_dir_migration`) → `scan_project` / `record_evidence` (both
-require an initialized manifest) → `list_evidence` → `write_doc` / `write_context_chunk` →
+`ensure_ai_dir` (absent → init, outdated → migrate/backfill, non-conformant → report only, ask the
+user, then `apply_ai_dir_migration`) → `scan_project` / `record_evidence` (both require an
+initialized manifest) → `list_evidence` → `write_doc` / `write_context_chunk` →
 `get_setup_status` / `check_drift` (both read the manifest back). Independently: `write_plan` →
 `list_plans` / `transition_plan` for the plans lifecycle (see below) — not part of the
 evidence/synthesis chain, since a plan isn't derived from evidence the way docs/context are.
-`start_documentation` wraps the whole detect → scan → ask → record → write sequence above into one
+`start_documentation` wraps the whole ensure → scan → ask → record → write sequence above into one
 prompt call so a caller doesn't need to memorize the order.
+
+`ensure_ai_dir` itself used to be four separate tools (`detect_ai_dir`, `init_ai_scaffold`,
+`upgrade_ai_dir`, `propose_ai_dir_migration`) before being folded into one. The fold only works
+because two of the four states need no human input to fix (absent, outdated) — those just happen
+inside the same call. The `non-conformant` state is the one genuine exception: migrating foreign
+content is a one-way, potentially destructive action, and a tool call can't pause mid-execution to
+ask a human, so that confirmation has to be a separate call (`apply_ai_dir_migration`) made after
+the agent shows the user what `ensure_ai_dir` found. That's also why `apply_ai_dir_migration`
+stayed a standalone tool rather than folding in too.
 
 `src/git.ts` holds `currentGitSha`/`changedFilesSince` (used by `scan_project` and `check_drift`;
 `execFileSync` with an argv array, not shell-interpolated strings, since `changedFilesSince`'s sha
@@ -86,12 +95,13 @@ readable markdown.
 
 ## Migration (non-conformant `.ai/`)
 
-`propose_ai_dir_migration` never classifies content — it just lists what's there. Classification
-(deciding what becomes a doc vs. a context chunk) is an interpretive step, so it's deferred to the
-same evidence → `write_doc`/`write_context_chunk` flow as everything else: `apply_ai_dir_migration`
-ingests every file under a non-conformant `.ai/` as a `source: "legacy-doc"`, `type: "raw-note"`
-evidence entry, then creates the scaffold. Originals are left on disk unless `remove_originals` is
-explicitly set — copy-first, delete-only-on-request, so a wrong ingestion never loses the original.
+`ensure_ai_dir`'s non-conformant branch never classifies content — it just lists what's there
+(same `walk()` helper `apply_ai_dir_migration` re-runs itself). Classification (deciding what
+becomes a doc vs. a context chunk) is an interpretive step, so it's deferred to the same evidence →
+`write_doc`/`write_context_chunk` flow as everything else: `apply_ai_dir_migration` ingests every
+file under a non-conformant `.ai/` as a `source: "legacy-doc"`, `type: "raw-note"` evidence entry,
+then creates the scaffold. Originals are left on disk unless `remove_originals` is explicitly set —
+copy-first, delete-only-on-request, so a wrong ingestion never loses the original.
 
 ## Synthesis
 
@@ -117,17 +127,18 @@ Transitions are intentionally unrestricted (any status to any status) — a plan
 to draft, or a completed one reopened, are both real things that happen; enforcing a strict state
 machine here would be a rule nobody asked for.
 
-## `detect_ai_dir`'s four states, and fixing drift with `upgrade_ai_dir`
+## `ensure_ai_dir`'s four states
 
-`detect_ai_dir` classifies a repo's `.ai/` into one of four states, each with exactly one correct
-remedy:
+Internally, `ensure_ai_dir` classifies a repo's `.ai/` into one of four states (the `detectAiDir()`
+helper in `src/tools/detectAiDir.ts` — no longer its own tool, just a function `ensure_ai_dir` and
+`apply_ai_dir_migration` both call), each with exactly one correct remedy:
 
 | Status | Meaning | Fix |
 |---|---|---|
-| `absent` | No `.ai/` at all | `init_ai_scaffold` |
-| `conformant` | Manifest is current *and* every `SCAFFOLD_DIRS` entry exists | nothing |
-| `outdated` | Manifest has a `schema_version` (recognizably ours) but it's stale, and/or some current-version directories are missing | `upgrade_ai_dir` |
-| `non-conformant` | No recognizable manifest at all — truly foreign content | `propose_ai_dir_migration` → `apply_ai_dir_migration` |
+| `absent` | No `.ai/` at all | `ensure_ai_dir` creates the scaffold, automatically |
+| `conformant` | Manifest is current *and* every `SCAFFOLD_DIRS` entry exists | nothing — `ensure_ai_dir` reports `conformant` and stops |
+| `outdated` | Manifest has a `schema_version` (recognizably ours) but it's stale, and/or some current-version directories are missing | `ensure_ai_dir` migrates/backfills, automatically |
+| `non-conformant` | No recognizable manifest at all — truly foreign content | `ensure_ai_dir` only reports the files found; the calling agent must ask the user, then call `apply_ai_dir_migration` |
 
 The `schema_version` field is what separates `outdated` from `non-conformant`: its presence alone
 means the file is recognizably ours, however old, and deserves an in-place upgrade rather than
@@ -136,14 +147,16 @@ every `SCAFFOLD_DIRS` entry to exist, since a manifest can be perfectly valid wh
 structure it describes is incomplete (this repo's own `.ai/` was missing `plans/{draft,active,completed}`
 for a time, with a fully-valid manifest, and nothing detected it before this existed).
 
-`upgrade_ai_dir` has two independent jobs, run together: migrate the manifest through
-`MANIFEST_MIGRATIONS` (a from→to step chain in `context-schema/src/migrations.ts`, empty today —
-only `0.1.0` has ever existed) to the current schema version, and unconditionally backfill any
-`SCAFFOLD_DIRS` entry that's missing. The directory backfill needs no per-version logic at all:
-`SCAFFOLD_DIRS` already lists the complete current set, so "create whatever's missing" is
-correct regardless of which old version is being upgraded from. If a manifest's `schema_version`
-has no path to current (no migration step covers it), `upgrade_ai_dir` fails with a clear error
-naming the missing step rather than guessing or silently leaving the manifest as-is.
+Only `absent` and `outdated` are fixed inside `ensure_ai_dir` itself, without asking — neither is
+destructive (creating empty scaffold dirs, or migrating a manifest `ensure_ai_dir` already knows is
+ours). For `outdated`, `ensure_ai_dir` does two independent jobs, run together: migrate the
+manifest through `MANIFEST_MIGRATIONS` (a from→to step chain in `context-schema/src/migrations.ts`,
+empty today — only `0.1.0` has ever existed) to the current schema version, and unconditionally
+backfill any `SCAFFOLD_DIRS` entry that's missing. The directory backfill needs no per-version
+logic at all: `SCAFFOLD_DIRS` already lists the complete current set, so "create whatever's
+missing" is correct regardless of which old version is being upgraded from. If a manifest's
+`schema_version` has no path to current (no migration step covers it), `ensure_ai_dir` fails with a
+clear error naming the missing step rather than guessing or silently leaving the manifest as-is.
 
 ## `scan_project`'s search depth
 
@@ -164,9 +177,9 @@ is also root-only, same reasoning as README/CONTRIBUTING — these are a root-le
 a per-subproject one. Kept as its own field rather than merged into `existing_docs`, since
 "agent-context already exists" is a meaningfully different signal from "human docs exist."
 
-## Why `scan_project` and `record_evidence` require `init_ai_scaffold` first
+## Why `scan_project` and `record_evidence` require `ensure_ai_dir` first
 
 Both write into `.ai/` (a cache file, or a new evidence entry + manifest update). Letting them run
 before `.ai/` exists would mean the first thing to touch a fresh repo silently creates a
-non-conformant `.ai/` directory that `detect_ai_dir` would then flag as a conflict — so the
+non-conformant `.ai/` directory that `ensure_ai_dir` would then flag as a conflict — so the
 manifest's existence is the gate, not an inconvenience.

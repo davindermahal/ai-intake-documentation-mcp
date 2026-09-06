@@ -146,7 +146,7 @@ export const scanProjectTool = {
     "docs (AGENTS.md/CLAUDE.md/.cursorrules/.github/copilot-instructions.md), plus a list of open " +
     "questions only a human can answer (purpose, users, constraints). Writes a cache snapshot to " +
     ".ai/cache/last-scan.json (overwritten each run — a cache, not an archive) and updates the " +
-    "manifest's last_scan_sha. Requires .ai/ to already be initialized (run init_ai_scaffold first).",
+    "manifest's last_scan_sha. Requires .ai/ to already be initialized (run ensure_ai_dir first).",
   inputSchema: z.object({
     repo_root: z.string().optional().describe("Absolute path to the repo root. Defaults to the server's cwd."),
   }),
@@ -156,7 +156,7 @@ export const scanProjectTool = {
     if (!manifest) {
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify({ error: "not-initialized: run init_ai_scaffold first" }, null, 2) },
+          { type: "text" as const, text: JSON.stringify({ error: "not-initialized: run ensure_ai_dir first" }, null, 2) },
         ],
         isError: true,
       };

@@ -4,14 +4,11 @@ const INSTRUCTIONS = `Onboard this repository into the documentation-mcp workflo
 steps below in order, and stop to ask the user directly whenever a decision needs a human — do \
 not guess or fabricate an answer on their behalf.
 
-1. Call \`detect_ai_dir\` on the repo root.
-   - \`absent\`: tell the user \`.ai/\` doesn't exist yet and ask for confirmation before calling \
-\`init_ai_scaffold\`.
-   - \`non-conformant\`: call \`propose_ai_dir_migration\`, show the user what it found, and ask \
-whether to migrate it (\`apply_ai_dir_migration\` with \`confirm: true\`) or leave it alone. Never \
-migrate without an explicit yes.
-   - \`outdated\`: call \`upgrade_ai_dir\`, no confirmation needed.
-   - \`conformant\`: continue.
+1. Call \`ensure_ai_dir\` on the repo root. It handles \`absent\` (creates the scaffold) and \
+\`outdated\` (migrates/backfills) automatically, no confirmation needed — just check the result. \
+If it reports \`non-conformant\`, show the user the \`files\` it found and ask whether to migrate \
+(\`apply_ai_dir_migration\` with \`confirm: true\`) or leave it alone. Never migrate without an \
+explicit yes.
 
 2. Before scanning, ask the user what they want documented: the whole repo, or specific \
 directories/packages (for example "just /src", or "packages/foo and packages/bar"). Wait for a \
@@ -42,7 +39,7 @@ export const startDocumentationPrompt = {
   name: "start_documentation",
   title: "Start Documentation",
   description:
-    "Onboards this repo end-to-end: detects/initializes .ai/, scans the project, asks the user " +
+    "Onboards this repo end-to-end: ensures .ai/ is set up, scans the project, asks the user " +
     "what to focus on plus the open questions only they can answer, then writes .ai/docs and " +
     ".ai/context from the answers. Run this to kick off (or resume) documenting a project.",
   argsSchema: z.object({}),

@@ -29,7 +29,7 @@ export function resolveAiDir(repoRoot: string): string {
 }
 
 /**
- * Every directory init_ai_scaffold (and apply_ai_dir_migration, which scaffolds after ingesting
+ * Every directory ensure_ai_dir (and apply_ai_dir_migration, which scaffolds after ingesting
  * legacy content) must create. Single source of truth so the two never drift apart.
  */
 export const SCAFFOLD_DIRS = [

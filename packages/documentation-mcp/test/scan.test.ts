@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { scanProject, scanProjectTool } from "../src/tools/scanProject.js";
 import { checkDriftTool } from "../src/tools/checkDrift.js";
-import { initAiScaffoldTool } from "../src/tools/initAiScaffold.js";
+import { ensureAiDirTool } from "../src/tools/ensureAiDir.js";
 import { cleanupRepo, mkTempRepo, textOf } from "./helpers.js";
 
 let repo: string;
@@ -62,7 +62,7 @@ describe("scan_project tool + check_drift", () => {
   });
 
   it("updates last_scan_sha, and check_drift reflects staleness against new commits", async () => {
-    await initAiScaffoldTool.handler({ repo_root: repo });
+    await ensureAiDirTool.handler({ repo_root: repo });
     await scanProjectTool.handler({ repo_root: repo });
 
     const fresh = textOf(await checkDriftTool.handler({ repo_root: repo })) as { stale: boolean };
@@ -78,7 +78,7 @@ describe("scan_project tool + check_drift", () => {
   });
 
   it("check_drift reports never-scanned when last_scan_sha is null", async () => {
-    await initAiScaffoldTool.handler({ repo_root: repo });
+    await ensureAiDirTool.handler({ repo_root: repo });
     const result = textOf(await checkDriftTool.handler({ repo_root: repo })) as { stale: boolean; last_scan_sha: null };
     expect(result.last_scan_sha).toBeNull();
     expect(result.stale).toBe(true);
