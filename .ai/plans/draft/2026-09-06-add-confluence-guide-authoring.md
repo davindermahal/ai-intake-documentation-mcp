@@ -62,10 +62,16 @@ CONFLUENCE_GUIDE_INDEX_URL=https://confluence.example.com/pages/GUIDE_INDEX
 - `CONFLUENCE_SPACE_KEY` is new — needed to create a page at all (Confluence's create-content API
   requires a target space). Required only for `ensure_guide_index`/`sync_guide`; everything else in
   this server works exactly as it does today without it.
-- Auth and base site URL are **not** duplicated here — this server reuses `JIRA_SITE_URL`,
-  `JIRA_EMAIL`, and `JIRA_API_TOKEN` from the same file, per the sibling plan's Key decision #6
-  assumption that Jira and Confluence share one Atlassian tenant. See Key decision #2 for the risk
-  this creates.
+- Auth and base site URL default to reusing `JIRA_SITE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN`
+  from the same file (shared-tenant assumption), but per the sibling plan's (now-resolved) Key
+  decision #6, three more optional fields override them individually if Confluence ever turns out
+  to be a separate tenant:
+  ```
+  CONFLUENCE_SITE_URL=   # falls back to JIRA_SITE_URL if unset
+  CONFLUENCE_EMAIL=      # falls back to JIRA_EMAIL if unset
+  CONFLUENCE_API_TOKEN=  # falls back to JIRA_API_TOKEN if unset
+  ```
+  See Key decision #2 for the cross-repo coupling this creates.
 
 This server has never read a global config file before (it only reads/writes a target project's
 own `.ai/`) — this plan adds that capability for the first time, as its own small parser
@@ -76,16 +82,18 @@ code across both rather than sharing it).
 ### 2. Confluence write client
 
 `packages/documentation-mcp/src/confluence/client.ts` — a new, write-capable client, targeting
-`/wiki/rest/api/content` (REST API v1 — works on both Confluence Cloud and Server/Data Center,
-keeps parity with the sibling plan's read-side client choice). Supports:
+`/wiki/rest/api/content` (REST API v1 — confirmed correct for Confluence **Cloud**, the deployment
+actually in use). Supports:
 - `createPage({ spaceKey, title, storageBody, parentId? })`
 - `updatePage({ pageId, title, storageBody, version })` (Confluence's update API requires the
   current version number — fetch-then-increment, standard optimistic-locking pattern for this API)
 - `getPageByTitle({ spaceKey, title })` — used to decide create vs. update
 
-Auth: Basic (`email:apiToken`, base64), same shape as `JiraClient`'s token path
-(`src/jira/client.ts:52-75` in `ai-intake-mcp`) — no cookie-auth fallback needed here, since guide
-authoring is expected to run with a real API token configured, not an interactive browser session.
+Auth: Basic (`email:apiToken`, base64) resolved as `confluenceSiteUrl ?? jiraSiteUrl`,
+`confluenceEmail ?? jiraEmail`, `confluenceApiToken ?? jiraApiToken` (Key decision #2) — same shape
+as `JiraClient`'s token path (`src/jira/client.ts:52-75` in `ai-intake-mcp`) — no cookie-auth
+fallback needed here, since guide authoring is expected to run with a real API token configured,
+not an interactive browser session.
 
 ### 3. Guide content format
 
@@ -151,15 +159,35 @@ Confluence setup, whether a developer uses one of these tools or both. The trade
 now has a real (if narrow) coupling to a config file whose name and variable schema live in a
 different repo's plan, not this one — see Key decision #2's related risk.
 
-### 2. Reuses Jira credentials for Confluence auth — same assumption, same caveat, now duplicated
+### 2. Reuses Jira credentials for Confluence auth by default, with per-field override
 
-Like the sibling plan's Key decision #6, this assumes Jira and Confluence are the same Atlassian
-tenant with credentials that work for both. Flagged the same way: confirm at review, not blocking
-now. New risk specific to this plan: because this server reads `JIRA_SITE_URL`/`JIRA_EMAIL`/
-`JIRA_API_TOKEN` — variable names it doesn't own — a rename of those in `ai-intake-mcp`'s
-`GlobalConfig` would silently break this server's Confluence auth with no compile-time signal
-across the repo boundary. Worth a code comment pointing at the sibling repo's `src/config.ts` as
-the source of truth for those names, so a future reader isn't left guessing why they're here.
+**Resolved**, matching the sibling plan's (now-resolved) Key decision #6: default behavior (all
+three `CONFLUENCE_*` override fields unset) reuses `JIRA_SITE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN` —
+believed to be correct (same Atlassian Cloud tenant) but not confirmed with certainty. If that
+turns out to be wrong, setting `CONFLUENCE_SITE_URL`/`CONFLUENCE_EMAIL`/`CONFLUENCE_API_TOKEN`
+overrides it per-field, no config-shape change needed either side.
+
+Risk specific to this plan, still real after this resolution: because this server reads
+`JIRA_SITE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN` — variable names it doesn't own — a rename of those
+in `ai-intake-mcp`'s `GlobalConfig` would silently break this server's Confluence auth with no
+compile-time signal across the repo boundary. Worth a code comment in this repo's
+`src/config.ts` pointing at `ai-intake-mcp`'s `src/config.ts` as the source of truth for those
+names, so a future reader isn't left guessing why they're here.
+
+### 5. Markdown → Confluence storage-format: hand-rolled converter, not a library
+
+**Resolved.** `markdown-to-storage.ts` is hand-written, covering exactly the subset guides need
+(headings, ordered/unordered lists, fenced code blocks, the index's table shape) — no new
+dependency for functionality this plan only needs a narrow, fully-known slice of. Fully unit-
+testable against fixed fixtures since `write_guide` constrains the input shape at the source.
+
+### 6. `build-<xyz>-task` guides are scoped by title convention, not a new index column
+
+**Resolved**, matching the sibling plan's existing preference (its Key decision #2) for reusing
+mechanisms over adding structured fields. The index table stays at four columns
+(Title/Description/Link/Tags); `write_guide` enforces a naming convention for repo-scoped guides,
+e.g. `"Build: <repo-name> — <task>"`. `ai-intake-mcp`'s planning-side matching already works off
+title/description text, so this needs no change on that side either.
 
 ### 3. New guide pages are created as children of the index page
 
@@ -178,38 +206,32 @@ to add stronger identity later.
 
 ## Open questions
 
-1. **Markdown → Confluence storage-format conversion: hand-roll or use a library?** Guides only
-   need a narrow subset (headings, ordered/unordered lists, fenced code blocks, one table shape for
-   the index) — leaning toward a small hand-rolled converter to avoid a new dependency, given the
-   subset is both small and fully known in advance. Confirm at review before writing it.
-2. **How does a `build-<xyz>-task` guide signal which repo it's about?** The index table still only
-   has Title/Description/Link/Tags (Goals, above — no format change). Leaning toward: no new
-   column, just a naming convention the `write_guide` prompt enforces (e.g. title
-   `"Build: <repo-name> — <task>"`), consistent with the sibling plan's Key decision #2 preference
-   for reusing existing mechanisms over adding new structured fields. Confirm this reads well
-   enough for `ai-intake-mcp`'s matching agent to actually find repo-scoped guides during planning.
-3. **Confluence API permissions**: does the API token needs space-admin/edit rights on the guides
+All four resolved except one genuinely unknowable-in-advance item:
+
+1. **Confluence API permissions**: does the API token need space-admin/edit rights on the guides
    space beyond whatever a normal Jira/Confluence user already has? Not knowable in the abstract —
-   verify at the first real dry run (Verification #2).
-4. **Confluence Cloud vs. Server/Data Center**: REST API v1 (`/wiki/rest/api/content`) works on
-   both, which is why it's chosen over the Cloud-only v2/ADF API — confirm this holds for whichever
-   Confluence deployment is actually in use at review.
+   verify at the first real dry run (Verification #2). Not blocking implementation.
+
+Resolved: markdown-conversion approach (Key decision #5), `build-<xyz>-task` repo scoping (Key
+decision #6), Confluence deployment confirmed as Cloud (Key decision #2's client section), and
+Jira/Confluence auth reuse with per-field override (Key decision #2).
 
 ## Implementation steps (draft)
 
 1. Add `packages/documentation-mcp/src/config.ts` — parses `~/.config/ai-intake-mcp/.env` (its own
-   small parser, not imported from `ai-intake-mcp`), exposing site URL, email, API token, space
-   key, and guide index URL.
-2. Add `packages/documentation-mcp/src/confluence/client.ts` (create/get/update page) and
-   `markdown-to-storage.ts` (content conversion).
+   small parser, not imported from `ai-intake-mcp`), exposing `jiraSiteUrl`/`jiraEmail`/
+   `jiraApiToken`, the optional `confluenceSiteUrl`/`confluenceEmail`/`confluenceApiToken`
+   overrides, `confluenceSpaceKey`, and `confluenceGuideIndexUrl`.
+2. Add `packages/documentation-mcp/src/confluence/client.ts` (create/get/update page, `confluence*
+   ?? jira*` auth resolution per Key decision #2) and `markdown-to-storage.ts` (content conversion,
+   Key decision #5).
 3. Add `packages/documentation-mcp/src/confluence/index-table.ts` (parse + serialize the index
    table).
 4. Add `packages/documentation-mcp/src/tools/ensureGuideIndex.ts`, `listGuides.ts`, `syncGuide.ts`,
    and register them in `packages/documentation-mcp/src/index.ts`.
-5. Add `packages/documentation-mcp/src/prompts/writeGuide.ts` and register it.
-6. Resolve Open questions 1 and 2 at review before writing the converter and the prompt's title
-   convention, respectively.
-7. Validate end-to-end against a real Confluence space, using a Symfony upgrade guide as the first
+5. Add `packages/documentation-mcp/src/prompts/writeGuide.ts` (enforcing the `"Build: <repo-name>
+   — <task>"` title convention from Key decision #6 for repo-scoped guides) and register it.
+6. Validate end-to-end against a real Confluence space, using a Symfony upgrade guide as the first
    real case (matches the sibling plan's own proof case) — see Verification.
 
 ## Verification
