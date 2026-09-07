@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-07-add-a-last-modified-column-to-the-guide-index-write-side",
+  "title": "Add a Last Modified column to the guide index (write side)",
+  "date": "2026-09-07T05:00:03.488Z",
+  "description": "Companion, write-side plan to ai-intake-mcp's read-side plan for the same feature: sync_guide stamps a Last Modified date on every guide's index row (append after Tags), and migrates an already-published 4-column index table in place. Must stay in sync with the ai-intake-mcp plan on exact column name, date format, and position — that plan is the read side of this same table shape.",
+  "ticket_key": null,
+  "status": "completed",
+  "created_by": "claude-code",
+  "approved_at": "2026-09-07T06:20:00.000Z",
+  "updated_at": "2026-09-07T16:26:50.277Z"
+}

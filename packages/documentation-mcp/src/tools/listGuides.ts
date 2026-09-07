@@ -7,8 +7,9 @@ export const listGuidesTool = {
   name: "list_guides",
   description:
     "Fetches and parses the shared Confluence guide index (CONFLUENCE_GUIDE_INDEX_URL) into " +
-    "{title, description, link, tags}[], for checking whether a guide already exists before " +
-    "authoring a new one. Read-only.",
+    "{title, description, link, tags, lastModified}[], for checking whether a guide already exists " +
+    "before authoring a new one. lastModified is an ISO date (YYYY-MM-DD) stamped by sync_guide's " +
+    "last publish of that row, or \"\" if the row predates this column. Read-only.",
   inputSchema: z.object({}),
   handler: async () => {
     const config = loadConfluenceConfig();

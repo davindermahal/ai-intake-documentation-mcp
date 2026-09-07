@@ -111,3 +111,45 @@ companion plan.
    sync.
 3. Hand off to the companion `ai-intake-mcp` plan's own verification once this ships — its round-trip
    check depends on a real page written by this implementation.
+
+## Implementation notes (2026-09-07)
+
+Steps 1, 2, and 4 done on branch `add-guide-attachment-and-last-modified` (implemented together with
+the companion attachment plan, since both touch `index-table.ts`/`syncGuide.ts`). Step 3 needed no
+code change: `ensure_guide_index`'s bootstrap already calls `serializeIndexTable([])`, which now
+emits 5 columns automatically.
+
+One deviation from the design as written: `parseIndexTable` matches the 5th cell **positionally**
+(read when present, default `""` when absent), not by header text. The existing parser was already
+purely positional for all four original columns (it never read header text at all, just skipped row
+0) — matching that column by header text alone would have meant rewriting the whole parser's
+approach, well beyond this plan's "additive" scope. Positional-with-tolerance still satisfies the
+actual contract (5th column, appended after Tags) the companion `ai-intake-mcp` plan depends on; it's
+an implementation-strategy difference, not a shape difference.
+
+`npm run build && npm test` — Verification #1 — passes: 18 test files, 100 tests (includes the
+attachment plan's tests, implemented in the same branch).
+
+## Real run log (2026-09-07) — Verification #2, GO
+
+Real credentials were available after all (checked directly this time); ran against the same
+`dmahal.atlassian.net` / `QT` space as the original authoring plan's QA.
+
+- **Before any write**: `list_guides` against the real, still-4-column index page (untouched since
+  the original authoring plan's own QA) correctly parsed the existing "Symfony 4→5 Upgrade" row with
+  `lastModified: ""` — confirming the legacy-table tolerance works against a real page, not just the
+  hand-written fixture in the unit test.
+- **After one `sync_guide` call** (a new "QA Test: Attachment and Last Modified" row, via the
+  companion plan's own live test): `list_guides` showed the table upgraded to 5 columns in place —
+  the new row correctly stamped `lastModified: "2026-09-07"`, and, critically, the pre-existing
+  Symfony row was **still `""`, not fabricated** — exactly the behavior this plan's design and Key
+  decision #1 required.
+- **After a second and third `sync_guide` call** on the same new row (testing the companion
+  attachment plan's versioning): `lastModified` stayed correctly stamped to the current date on each
+  re-sync; the untouched Symfony row remained `""` throughout.
+
+No bugs found on this plan's own logic (the one real bug this session found — the attachment
+upsert-by-filename assumption — belongs to the companion plan, see its own Real run log).
+
+**Verdict: GO.** Verification #3 (the `ai-intake-mcp` companion plan's own round-trip check) remains
+for that repo's plan to pick up once its `index-parser.ts` is built — not this plan's to close.

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeIndexTable } from "../src/confluence/index-table.js";
 import { textOf } from "./helpers.js";
 
-const INDEX_STORAGE = serializeIndexTable([{ title: "Symfony 4→5 Upgrade", description: "d", link: "https://x/pages/1", tags: ["symfony"] }]);
+const INDEX_STORAGE = serializeIndexTable([{ title: "Symfony 4→5 Upgrade", description: "d", link: "https://x/pages/1", tags: ["symfony"], lastModified: "2026-09-06" }]);
 
 vi.mock("../src/confluence/client.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/confluence/client.js")>();
@@ -56,7 +56,7 @@ describe("list_guides", () => {
   it("fetches and parses the index into guide rows", async () => {
     writeFileSync(envPath, "JIRA_SITE_URL=https://x\nJIRA_INTAKE_EMAIL=a@b.com\nJIRA_INTAKE_API_TOKEN=tok\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/1\n");
     const result = await listGuidesTool.handler();
-    expect(textOf(result)).toEqual({ guides: [{ title: "Symfony 4→5 Upgrade", description: "d", link: "https://x/pages/1", tags: ["symfony"] }] });
+    expect(textOf(result)).toEqual({ guides: [{ title: "Symfony 4→5 Upgrade", description: "d", link: "https://x/pages/1", tags: ["symfony"], lastModified: "2026-09-06" }] });
   });
 
   it("errors clearly when the configured index page can't be found", async () => {

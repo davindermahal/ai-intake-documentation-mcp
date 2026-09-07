@@ -48,6 +48,22 @@ export interface ConfluenceClientOptions extends ResolvedConfluenceAuth {
   fetchImpl?: typeof fetch;
 }
 
+export interface AttachmentResult {
+  id: string;
+  title: string;
+}
+
+interface RawAttachmentResponse {
+  results: Array<{ id: string; title: string }>;
+}
+
+const ATTACHMENT_UPLOAD_ATTEMPTS = 3;
+const ATTACHMENT_RETRY_DELAY_MS = 50;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Write-capable Confluence client, targeting REST API v1 (/wiki/rest/api/content — confirmed
  * correct for Confluence Cloud, the deployment in use). Mirrors ai-intake-mcp's JiraClient pattern:
@@ -132,5 +148,76 @@ export class ConfluenceClient {
       body: JSON.stringify(body),
     });
     return toConfluencePage(this.siteUrl, page);
+  }
+
+  /**
+   * Uploads (or, on a repeat call with the same filename, versions) a file attachment on a page.
+   *
+   * Found live, against a real Confluence Cloud instance (not documented clearly enough to have
+   * been caught by reading the API docs alone): creating a new attachment and versioning an
+   * existing one are two *different* endpoints, not one upsert-by-filename endpoint as originally
+   * assumed. POSTing to .../child/attachment a second time with a filename that already exists
+   * returns a 400 ("Cannot add a new attachment with same file name as an existing attachment").
+   * The actual API requires looking up the existing attachment by filename first, then POSTing to
+   * .../child/attachment/{attachmentId}/data to version it if found.
+   *
+   * Retries transient failures a few times before giving up (evidence, not a hard requirement --
+   * callers are expected to tolerate and report a final failure rather than treat it as fatal).
+   */
+  async uploadAttachment(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= ATTACHMENT_UPLOAD_ATTEMPTS; attempt++) {
+      try {
+        return await this.uploadAttachmentOnce(params);
+      } catch (err) {
+        lastError = err;
+        if (attempt < ATTACHMENT_UPLOAD_ATTEMPTS) await sleep(ATTACHMENT_RETRY_DELAY_MS);
+      }
+    }
+    throw lastError;
+  }
+
+  private async findAttachmentByFilename(pageId: string, filename: string): Promise<{ id: string } | null> {
+    const query = new URLSearchParams({ filename });
+    const res = await this.fetchImpl(`${this.siteUrl}/wiki/rest/api/content/${pageId}/child/attachment?${query.toString()}`, {
+      headers: { Authorization: this.authHeader, Accept: "application/json" },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new ConfluenceApiError(res.status, res.statusText, body);
+    }
+    const json = (await res.json()) as RawAttachmentResponse;
+    const match = json.results[0];
+    return match ? { id: match.id } : null;
+  }
+
+  private async uploadAttachmentOnce(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
+    const existing = await this.findAttachmentByFilename(params.pageId, params.filename);
+    const path = existing
+      ? `/wiki/rest/api/content/${params.pageId}/child/attachment/${existing.id}/data`
+      : `/wiki/rest/api/content/${params.pageId}/child/attachment`;
+
+    // Multipart, not JSON -- this deliberately doesn't go through request(), which hardcodes
+    // Content-Type: application/json. Confluence's attachment endpoints also require the
+    // X-Atlassian-Token: nocheck header (its standard XSRF-check bypass for non-browser clients).
+    const form = new FormData();
+    form.append("file", new Blob([params.content], { type: params.mimeType }), params.filename);
+
+    const res = await this.fetchImpl(`${this.siteUrl}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: this.authHeader,
+        Accept: "application/json",
+        "X-Atlassian-Token": "nocheck",
+      },
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new ConfluenceApiError(res.status, res.statusText, body);
+    }
+    const json = (await res.json()) as RawAttachmentResponse | { id: string; title: string };
+    const result = "results" in json ? json.results[0] : json;
+    return { id: result.id, title: result.title };
   }
 }

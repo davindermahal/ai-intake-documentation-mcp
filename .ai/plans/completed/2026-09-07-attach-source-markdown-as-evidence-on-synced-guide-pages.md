@@ -232,3 +232,68 @@ can piggyback on QA already in flight there:
 `npm run build && npm test` must pass (layers 1+2) before attempting layer 3. This plan moves to
 `completed` only once all three layers have been run and layer 3's results are recorded (e.g. as
 evidence via `record_evidence`, matching this repo's own convention for its other plans).
+
+## Implementation notes (2026-09-07)
+
+Layers 1 and 2 done on branch `add-guide-attachment-and-last-modified`:
+- `ConfluenceClient.uploadAttachment` added (multipart POST, `X-Atlassian-Token: nocheck`, 3-attempt
+  retry with a short fixed delay between attempts) — matches Key decision #1's resolved semantics
+  exactly: failure never propagates out of `sync_guide`, only out of `uploadAttachment` itself after
+  retries are exhausted.
+- `sync_guide` wired per the Design overview: uploads `content` (the raw markdown, not the converted
+  storage body) as `source.md` on the resolved guide page's id, wrapped in try/catch; result JSON
+  gains `attached`/`attachmentError`.
+- `write_guide`'s step 7 now mentions a failed attachment when `attached: false`.
+- All layer-1 and layer-2 test cases from the QA plan above are implemented as written: multipart
+  shape + header assertions, first-attempt-success (no retry), retry-then-succeed, exhausted-retries
+  failure, plus the integration tests (create/update path pageId correctness, and the regression
+  guard that an attachment failure still lets the index upsert complete).
+- `npm run build && npm test` — 18 test files, 99 tests, all passing (includes the companion
+  Last-Modified-column plan's tests too, implemented in the same branch).
+
+## Real run log (2026-09-07) — Layer 3, GO after 1 real bug found and fixed
+
+Run against the same real Confluence Cloud test space as the original authoring plan's QA
+(`dmahal.atlassian.net`, space `QT`, index page id 196804) — real credentials were available in
+`~/.config/ai-intake-mcp/.env` after all (an earlier assumption that none were available in this
+environment was wrong; checked directly this time rather than re-assumed).
+
+**1 real bug found and fixed, not caught by 99/99 mocked unit/integration tests:**
+
+- **Key decision #1's stated assumption — "Confluence's v1 attachment endpoint is upsert-by-
+  filename" — was wrong.** Real first `sync_guide` call (create path) succeeded and attached
+  `source.md` correctly. The **second** call (update path, same title) returned
+  `attached: false`, `attachmentError: "... 400 Bad Request: ... Cannot add a new attachment with
+  same file name as an existing attachment: source.md"`. Real Confluence Cloud requires a *different*
+  endpoint to version an existing attachment (`POST .../child/attachment/{attachmentId}/data`) than
+  to create a new one (`POST .../child/attachment`) — there is no single upsert-by-filename endpoint
+  as the design assumed. Fixed: `uploadAttachment` now looks up an existing attachment by filename
+  first (`GET .../child/attachment?filename=...`), then POSTs to whichever endpoint applies. Also
+  discovered live: the update-data endpoint's success response is the attachment object directly, not
+  wrapped in `{results: [...]}` like the create endpoint's — handled with a type guard.
+
+**Real results after the fix**, direct Node calls against the compiled `dist/` (not through a full MCP
+host, same pattern as the original plan's own live QA):
+
+- **Create**: `sync_guide` on a new title ("QA Test: Attachment and Last Modified") →
+  `{"status":"created", "attached":true, ...}`. Confirmed via a direct Confluence API call: exactly
+  one attachment, `source.md`, `mediaType: "text/markdown"`, `size: 147` — matches
+  `Buffer.byteLength` of the exact content sent. Downloaded the attachment and diffed against the
+  original string: **byte-identical**.
+- **Update (post-fix)**: re-ran `sync_guide` on the same title with different content →
+  `{"status":"updated", "attached":true, ...}`. Confirmed: still exactly **one** attachment (same id),
+  now at **version 2** — real versioning, not a duplicate. Downloaded v2's content: matches the new
+  content exactly.
+- **Repeated update**: a third `sync_guide` call → version incremented cleanly to **3**, still one
+  attachment. Versioning holds up across repeats, not just the first bump.
+- **No regression**: `list_guides` throughout continued to correctly report the pre-existing
+  "Symfony 4→5 Upgrade" row untouched, confirming this plan's changes didn't disturb existing guides.
+
+**Verdict: GO**, after the one fix above. `npm run build && npm test` — 18 files, 100 tests (99 + 1
+new regression test added for the create-vs-update-endpoint distinction) — all passing.
+
+One real artifact left behind: the "QA Test: Attachment and Last Modified" guide page and its index
+row are now live in the shared `QT` test space (same space the original plan's QA used and left its
+own "Symfony 4→5 Upgrade" test guide in) — deleting a guide/row is explicitly out of scope for these
+tools (per the original plan's Out of scope), so it was left in place rather than removed by hand
+outside the tool's own contract. Worth a human decision on whether to clean it up.

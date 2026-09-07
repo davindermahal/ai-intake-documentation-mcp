@@ -10,6 +10,12 @@ export interface GuideIndexRow {
   description: string;
   link: string;
   tags: string[];
+  /**
+   * ISO date (YYYY-MM-DD) the row was last upserted by sync_guide. Always present (never
+   * undefined) so every row has a consistent shape -- empty string means "not yet touched since
+   * this column was introduced," not "unknown due to a parse error."
+   */
+  lastModified: string;
 }
 
 function escapeHtml(s: string): string {
@@ -52,14 +58,20 @@ function stripTags(s: string): string {
 const ROW_RE = /<tr>([\s\S]*?)<\/tr>/g;
 const CELL_RE = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g;
 
-/** Skips the header row; tolerates a table with only a header (i.e. zero guides). */
+/**
+ * Skips the header row; tolerates a table with only a header (i.e. zero guides). Also tolerates a
+ * legacy 4-column table (no Last Modified cell yet, from before this column existed) -- the 5th
+ * cell is read positionally when present, defaulting to "" when it isn't, rather than requiring an
+ * exact column count. Whichever shape is read, serializeIndexTable always writes back 5 columns,
+ * so a single sync_guide/ensure_guide_index call against an old page upgrades it in place.
+ */
 export function parseIndexTable(storageBody: string): GuideIndexRow[] {
   const rows: GuideIndexRow[] = [];
   const rowMatches = [...storageBody.matchAll(ROW_RE)];
   for (const rowMatch of rowMatches.slice(1)) {
     const cells = [...rowMatch[1].matchAll(CELL_RE)].map((m) => m[1]);
     if (cells.length < 4) continue;
-    const [titleCell, descriptionCell, linkCell, tagsCell] = cells;
+    const [titleCell, descriptionCell, linkCell, tagsCell, lastModifiedCell] = cells;
     const hrefMatch = linkCell.match(/href="([^"]*)"/);
     rows.push({
       title: stripTags(titleCell),
@@ -69,18 +81,19 @@ export function parseIndexTable(storageBody: string): GuideIndexRow[] {
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
+      lastModified: lastModifiedCell !== undefined ? stripTags(lastModifiedCell) : "",
     });
   }
   return rows;
 }
 
 export function serializeIndexTable(rows: GuideIndexRow[]): string {
-  const headerRow = "<tr><th>Title</th><th>Description</th><th>Link</th><th>Tags</th></tr>";
+  const headerRow = "<tr><th>Title</th><th>Description</th><th>Link</th><th>Tags</th><th>Last Modified</th></tr>";
   const dataRows = rows.map((row) => {
     const link = `<a href="${escapeHtml(row.link)}">${escapeHtml(row.link)}</a>`;
     return `<tr><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.description)}</td><td>${link}</td><td>${escapeHtml(
       row.tags.join(", ")
-    )}</td></tr>`;
+    )}</td><td>${escapeHtml(row.lastModified)}</td></tr>`;
   });
   return `<table><tbody>${[headerRow, ...dataRows].join("")}</tbody></table>`;
 }
