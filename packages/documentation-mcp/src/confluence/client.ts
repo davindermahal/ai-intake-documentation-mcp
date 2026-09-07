@@ -48,6 +48,22 @@ export interface ConfluenceClientOptions extends ResolvedConfluenceAuth {
   fetchImpl?: typeof fetch;
 }
 
+export interface AttachmentResult {
+  id: string;
+  title: string;
+}
+
+interface RawAttachmentResponse {
+  results: Array<{ id: string; title: string }>;
+}
+
+const ATTACHMENT_UPLOAD_ATTEMPTS = 3;
+const ATTACHMENT_RETRY_DELAY_MS = 50;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Write-capable Confluence client, targeting REST API v1 (/wiki/rest/api/content — confirmed
  * correct for Confluence Cloud, the deployment in use). Mirrors ai-intake-mcp's JiraClient pattern:
@@ -132,5 +148,52 @@ export class ConfluenceClient {
       body: JSON.stringify(body),
     });
     return toConfluencePage(this.siteUrl, page);
+  }
+
+  /**
+   * Uploads (or, on a repeat call with the same filename, versions) a file attachment on a page.
+   * Confluence's v1 attachment endpoint is upsert-by-filename -- POSTing a file with the same name
+   * as an existing attachment on that page creates a new version of it automatically, so no
+   * separate "does this exist" lookup is needed here (unlike page create/update's title matching).
+   *
+   * Retries transient failures a few times before giving up (evidence, not a hard requirement --
+   * callers are expected to tolerate and report a final failure rather than treat it as fatal).
+   */
+  async uploadAttachment(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= ATTACHMENT_UPLOAD_ATTEMPTS; attempt++) {
+      try {
+        return await this.uploadAttachmentOnce(params);
+      } catch (err) {
+        lastError = err;
+        if (attempt < ATTACHMENT_UPLOAD_ATTEMPTS) await sleep(ATTACHMENT_RETRY_DELAY_MS);
+      }
+    }
+    throw lastError;
+  }
+
+  private async uploadAttachmentOnce(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
+    // Multipart, not JSON -- this deliberately doesn't go through request(), which hardcodes
+    // Content-Type: application/json. Confluence's attachment endpoint also requires the
+    // X-Atlassian-Token: nocheck header (its standard XSRF-check bypass for non-browser clients).
+    const form = new FormData();
+    form.append("file", new Blob([params.content], { type: params.mimeType }), params.filename);
+
+    const res = await this.fetchImpl(`${this.siteUrl}/wiki/rest/api/content/${params.pageId}/child/attachment`, {
+      method: "POST",
+      headers: {
+        Authorization: this.authHeader,
+        Accept: "application/json",
+        "X-Atlassian-Token": "nocheck",
+      },
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new ConfluenceApiError(res.status, res.statusText, body);
+    }
+    const json = (await res.json()) as RawAttachmentResponse;
+    const result = json.results[0];
+    return { id: result.id, title: result.title };
   }
 }

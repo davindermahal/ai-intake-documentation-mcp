@@ -92,4 +92,64 @@ describe("ConfluenceClient", () => {
     await client.getPageById("1");
     expect(fetchImpl).toHaveBeenCalled();
   });
+
+  describe("uploadAttachment", () => {
+    async function fileFromBody(init?: RequestInit): Promise<File> {
+      const form = init?.body as FormData;
+      return form.get("file") as File;
+    }
+
+    it("posts a multipart request to the attachment endpoint with the nocheck token header, not JSON", async () => {
+      const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+        expect(url).toBe("https://example.atlassian.net/wiki/rest/api/content/20/child/attachment");
+        const headers = init?.headers as Record<string, string>;
+        expect(headers["X-Atlassian-Token"]).toBe("nocheck");
+        expect(headers["Content-Type"]).toBeUndefined();
+        expect(init?.body).toBeInstanceOf(FormData);
+        const file = await fileFromBody(init);
+        expect(file.name).toBe("source.md");
+        expect(file.type).toBe("text/markdown");
+        expect(await file.text()).toBe("# Heading\n\nSome content, exactly as authored.");
+        return fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] });
+      });
+      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+      const result = await client.uploadAttachment({
+        pageId: "20",
+        filename: "source.md",
+        content: "# Heading\n\nSome content, exactly as authored.",
+        mimeType: "text/markdown",
+      });
+      expect(result).toEqual({ id: "att-1", title: "source.md" });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not retry after a first-attempt success", async () => {
+      const fetchImpl = vi.fn(async () => fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] }));
+      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+      await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries on failure and succeeds if a later attempt works", async () => {
+      let calls = 0;
+      const fetchImpl = vi.fn(async () => {
+        calls++;
+        if (calls < 3) return fakeResponse(500, { message: "transient" });
+        return fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] });
+      });
+      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+      const result = await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" });
+      expect(result).toEqual({ id: "att-1", title: "source.md" });
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up and throws after exhausting all retry attempts", async () => {
+      const fetchImpl = vi.fn(async () => fakeResponse(500, { message: "still failing" }));
+      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+      await expect(
+        client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" })
+      ).rejects.toBeInstanceOf(ConfluenceApiError);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    });
+  });
 });

@@ -36,7 +36,10 @@ else. Revise based on their feedback. Do not proceed to step 6 without an explic
 relevant tags, and \`page_id\` if step 3 identified an existing page to update.
 
 7. Report the resulting Confluence URL back to the user, and confirm whether the publish created a \
-new page or updated an existing one.`;
+new page or updated an existing one. If the response's \`attached\` field is false, mention that the \
+source-markdown attachment failed to upload (see \`attachmentError\`) — the guide itself still \
+published successfully; the attachment is evidence, not a requirement, but the user may want to \
+retry \`sync_guide\` later to get it attached.`;
 
 export const writeGuidePrompt = {
   name: "write_guide",

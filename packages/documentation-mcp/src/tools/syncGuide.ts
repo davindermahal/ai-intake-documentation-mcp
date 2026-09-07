@@ -12,8 +12,11 @@ export const syncGuideTool = {
   name: "sync_guide",
   description:
     "Publishes a guide to Confluence: creates or updates its leaf page (as a child of the guide " +
-    "index page) and adds/updates its row on the shared index. Matches an existing page by " +
-    "page_id if given, else by exact title. Requires ensure_guide_index to have set " +
+    "index page) and adds/updates its row on the shared index, stamping today's date into the " +
+    "index's Last Modified column. Also attaches the raw markdown as source.md on the guide's page " +
+    "(versioned on re-sync) -- best-effort evidence, never a reason this tool reports failure; " +
+    "check the returned attached/attachmentError fields to see if it succeeded. Matches an existing " +
+    "page by page_id if given, else by exact title. Requires ensure_guide_index to have set " +
     "CONFLUENCE_GUIDE_INDEX_URL first.",
   inputSchema: z.object({
     title: z.string(),
@@ -72,8 +75,21 @@ export const syncGuideTool = {
       : await client.createPage({ spaceKey: config.confluenceSpaceKey, title, storageBody, parentId: indexPage.id });
     const status = existing ? "updated" : "created";
 
+    // Best-effort: the attachment is reference/evidence, never a gate on sync_guide's success --
+    // page + index write is what "success" means here. uploadAttachment already retries transient
+    // failures internally; if it still fails after that, report it but keep going.
+    let attached = true;
+    let attachmentError: string | undefined;
+    try {
+      await client.uploadAttachment({ pageId: guidePage.id, filename: "source.md", content, mimeType: "text/markdown" });
+    } catch (err) {
+      attached = false;
+      attachmentError = err instanceof Error ? err.message : String(err);
+    }
+
     const rows = parseIndexTable(indexPage.storageBody);
-    const updatedRows = upsertIndexRow(rows, { title, description, link: guidePage.url, tags });
+    const lastModified = new Date().toISOString().slice(0, 10);
+    const updatedRows = upsertIndexRow(rows, { title, description, link: guidePage.url, tags, lastModified });
     await client.updatePage({
       pageId: indexPage.id,
       title: indexPage.title,
@@ -81,6 +97,8 @@ export const syncGuideTool = {
       version: indexPage.version,
     });
 
-    return { content: [{ type: "text" as const, text: JSON.stringify({ status, url: guidePage.url }, null, 2) }] };
+    const result: Record<string, unknown> = { status, url: guidePage.url, attached };
+    if (attachmentError) result.attachmentError = attachmentError;
+    return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
   },
 };
