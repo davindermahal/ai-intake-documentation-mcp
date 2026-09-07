@@ -59,7 +59,8 @@ export class ConfluenceClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: ConfluenceClientOptions) {
-    this.siteUrl = options.siteUrl.replace(/\/+$/, "");
+    const normalized = /^https?:\/\//.test(options.siteUrl) ? options.siteUrl : `https://${options.siteUrl}`;
+    this.siteUrl = normalized.replace(/\/+$/, "");
     this.authHeader = "Basic " + Buffer.from(`${options.email}:${options.apiToken}`).toString("base64");
     this.fetchImpl = options.fetchImpl ?? fetch;
   }

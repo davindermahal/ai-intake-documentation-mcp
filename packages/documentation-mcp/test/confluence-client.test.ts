@@ -82,4 +82,14 @@ describe("ConfluenceClient", () => {
     const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
     await client.updatePage({ pageId: "20", title: "Guide", storageBody: "<p>hi</p>", version: 3 });
   });
+
+  it("normalizes a bare-domain siteUrl (no scheme) by adding https://", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      expect(url).toBe("https://example.atlassian.net/wiki/rest/api/content/1?expand=body.storage,version");
+      return fakeResponse(200, { id: "1", title: "T", version: { number: 1 } });
+    });
+    const client = new ConfluenceClient({ siteUrl: "example.atlassian.net", email: "a@b.com", apiToken: "tok", fetchImpl: fetchImpl as unknown as typeof fetch });
+    await client.getPageById("1");
+    expect(fetchImpl).toHaveBeenCalled();
+  });
 });
