@@ -94,18 +94,34 @@ describe("ConfluenceClient", () => {
   });
 
   describe("uploadAttachment", () => {
+    const LOOKUP_URL = "https://example.atlassian.net/wiki/rest/api/content/20/child/attachment?filename=source.md";
+    const CREATE_URL = "https://example.atlassian.net/wiki/rest/api/content/20/child/attachment";
+    const UPDATE_URL = "https://example.atlassian.net/wiki/rest/api/content/20/child/attachment/att-1/data";
+
     async function fileFromBody(init?: RequestInit): Promise<File> {
       const form = init?.body as FormData;
       return form.get("file") as File;
     }
 
-    it("posts a multipart request to the attachment endpoint with the nocheck token header, not JSON", async () => {
+    function noExistingAttachment(): Response {
+      return fakeResponse(200, { results: [] });
+    }
+
+    function existingAttachment(): Response {
+      return fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] });
+    }
+
+    it("looks up by filename first, then creates when none exists yet (not JSON, nocheck token header)", async () => {
       const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-        expect(url).toBe("https://example.atlassian.net/wiki/rest/api/content/20/child/attachment");
-        const headers = init?.headers as Record<string, string>;
+        if (init?.method !== "POST") {
+          expect(url).toBe(LOOKUP_URL);
+          return noExistingAttachment();
+        }
+        expect(url).toBe(CREATE_URL);
+        const headers = init.headers as Record<string, string>;
         expect(headers["X-Atlassian-Token"]).toBe("nocheck");
         expect(headers["Content-Type"]).toBeUndefined();
-        expect(init?.body).toBeInstanceOf(FormData);
+        expect(init.body).toBeInstanceOf(FormData);
         const file = await fileFromBody(init);
         expect(file.name).toBe("source.md");
         expect(file.type).toBe("text/markdown");
@@ -120,36 +136,55 @@ describe("ConfluenceClient", () => {
         mimeType: "text/markdown",
       });
       expect(result).toEqual({ id: "att-1", title: "source.md" });
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it("versions the existing attachment via .../data when the filename already exists (found live -- create-endpoint 400s on a repeat filename)", async () => {
+      const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method !== "POST") {
+          expect(url).toBe(LOOKUP_URL);
+          return existingAttachment();
+        }
+        expect(url).toBe(UPDATE_URL);
+        const file = await fileFromBody(init);
+        expect(await file.text()).toBe("updated content");
+        return fakeResponse(200, { id: "att-1", title: "source.md" }); // update-data returns the attachment directly, not wrapped in results
+      });
+      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+      const result = await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "updated content", mimeType: "text/markdown" });
+      expect(result).toEqual({ id: "att-1", title: "source.md" });
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
     });
 
     it("does not retry after a first-attempt success", async () => {
-      const fetchImpl = vi.fn(async () => fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] }));
+      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => (init?.method !== "POST" ? noExistingAttachment() : fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] })));
       const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
       await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" });
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(fetchImpl).toHaveBeenCalledTimes(2); // one lookup + one create, no retries
     });
 
-    it("retries on failure and succeeds if a later attempt works", async () => {
-      let calls = 0;
-      const fetchImpl = vi.fn(async () => {
-        calls++;
-        if (calls < 3) return fakeResponse(500, { message: "transient" });
+    it("retries the whole lookup+upload sequence on failure and succeeds if a later attempt works", async () => {
+      let postAttempts = 0;
+      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method !== "POST") return noExistingAttachment();
+        postAttempts++;
+        if (postAttempts < 3) return fakeResponse(500, { message: "transient" });
         return fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] });
       });
       const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
       const result = await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" });
       expect(result).toEqual({ id: "att-1", title: "source.md" });
-      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      expect(postAttempts).toBe(3);
+      expect(fetchImpl).toHaveBeenCalledTimes(6); // 3 attempts, each with its own lookup + post
     });
 
     it("gives up and throws after exhausting all retry attempts", async () => {
-      const fetchImpl = vi.fn(async () => fakeResponse(500, { message: "still failing" }));
+      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => (init?.method !== "POST" ? noExistingAttachment() : fakeResponse(500, { message: "still failing" })));
       const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
       await expect(
         client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" })
       ).rejects.toBeInstanceOf(ConfluenceApiError);
-      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      expect(fetchImpl).toHaveBeenCalledTimes(6);
     });
   });
 });

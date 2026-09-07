@@ -152,9 +152,14 @@ export class ConfluenceClient {
 
   /**
    * Uploads (or, on a repeat call with the same filename, versions) a file attachment on a page.
-   * Confluence's v1 attachment endpoint is upsert-by-filename -- POSTing a file with the same name
-   * as an existing attachment on that page creates a new version of it automatically, so no
-   * separate "does this exist" lookup is needed here (unlike page create/update's title matching).
+   *
+   * Found live, against a real Confluence Cloud instance (not documented clearly enough to have
+   * been caught by reading the API docs alone): creating a new attachment and versioning an
+   * existing one are two *different* endpoints, not one upsert-by-filename endpoint as originally
+   * assumed. POSTing to .../child/attachment a second time with a filename that already exists
+   * returns a 400 ("Cannot add a new attachment with same file name as an existing attachment").
+   * The actual API requires looking up the existing attachment by filename first, then POSTing to
+   * .../child/attachment/{attachmentId}/data to version it if found.
    *
    * Retries transient failures a few times before giving up (evidence, not a hard requirement --
    * callers are expected to tolerate and report a final failure rather than treat it as fatal).
@@ -172,14 +177,33 @@ export class ConfluenceClient {
     throw lastError;
   }
 
+  private async findAttachmentByFilename(pageId: string, filename: string): Promise<{ id: string } | null> {
+    const query = new URLSearchParams({ filename });
+    const res = await this.fetchImpl(`${this.siteUrl}/wiki/rest/api/content/${pageId}/child/attachment?${query.toString()}`, {
+      headers: { Authorization: this.authHeader, Accept: "application/json" },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new ConfluenceApiError(res.status, res.statusText, body);
+    }
+    const json = (await res.json()) as RawAttachmentResponse;
+    const match = json.results[0];
+    return match ? { id: match.id } : null;
+  }
+
   private async uploadAttachmentOnce(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
+    const existing = await this.findAttachmentByFilename(params.pageId, params.filename);
+    const path = existing
+      ? `/wiki/rest/api/content/${params.pageId}/child/attachment/${existing.id}/data`
+      : `/wiki/rest/api/content/${params.pageId}/child/attachment`;
+
     // Multipart, not JSON -- this deliberately doesn't go through request(), which hardcodes
-    // Content-Type: application/json. Confluence's attachment endpoint also requires the
+    // Content-Type: application/json. Confluence's attachment endpoints also require the
     // X-Atlassian-Token: nocheck header (its standard XSRF-check bypass for non-browser clients).
     const form = new FormData();
     form.append("file", new Blob([params.content], { type: params.mimeType }), params.filename);
 
-    const res = await this.fetchImpl(`${this.siteUrl}/wiki/rest/api/content/${params.pageId}/child/attachment`, {
+    const res = await this.fetchImpl(`${this.siteUrl}${path}`, {
       method: "POST",
       headers: {
         Authorization: this.authHeader,
@@ -192,8 +216,8 @@ export class ConfluenceClient {
       const body = await res.text().catch(() => "");
       throw new ConfluenceApiError(res.status, res.statusText, body);
     }
-    const json = (await res.json()) as RawAttachmentResponse;
-    const result = json.results[0];
+    const json = (await res.json()) as RawAttachmentResponse | { id: string; title: string };
+    const result = "results" in json ? json.results[0] : json;
     return { id: result.id, title: result.title };
   }
 }
