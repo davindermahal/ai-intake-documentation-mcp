@@ -3,9 +3,9 @@
   "description": "Follow-up to the (executed, QA-in-progress) Confluence guide-authoring plan: sync_guide currently discards the original markdown after converting it to Confluence storage format, so there's no exact-fidelity copy of what was actually authored. This plan has sync_guide attach the source .md as a file attachment on the guide's own leaf page (not a replacement for the rendered page, and not a change to the index's page-link shape) — pure reference/evidence, re-uploaded as a new attachment version on every sync.",
   "date": "2026-09-07T04:40:11.997Z",
   "ticket_key": null,
-  "status": "draft",
+  "status": "active",
   "created_by": "claude-code",
-  "approved_at": null,
+  "approved_at": "2026-09-07T06:20:00.000Z",
   "id": "2026-09-07-attach-source-markdown-as-evidence-on-synced-guide-pages",
-  "updated_at": "2026-09-07T04:40:11.998Z"
+  "updated_at": "2026-09-07T06:20:00.000Z"
 }
