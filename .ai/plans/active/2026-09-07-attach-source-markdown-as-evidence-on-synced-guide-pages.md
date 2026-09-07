@@ -232,3 +232,27 @@ can piggyback on QA already in flight there:
 `npm run build && npm test` must pass (layers 1+2) before attempting layer 3. This plan moves to
 `completed` only once all three layers have been run and layer 3's results are recorded (e.g. as
 evidence via `record_evidence`, matching this repo's own convention for its other plans).
+
+## Implementation notes (2026-09-07)
+
+Layers 1 and 2 done on branch `add-guide-attachment-and-last-modified`:
+- `ConfluenceClient.uploadAttachment` added (multipart POST, `X-Atlassian-Token: nocheck`, 3-attempt
+  retry with a short fixed delay between attempts) — matches Key decision #1's resolved semantics
+  exactly: failure never propagates out of `sync_guide`, only out of `uploadAttachment` itself after
+  retries are exhausted.
+- `sync_guide` wired per the Design overview: uploads `content` (the raw markdown, not the converted
+  storage body) as `source.md` on the resolved guide page's id, wrapped in try/catch; result JSON
+  gains `attached`/`attachmentError`.
+- `write_guide`'s step 7 now mentions a failed attachment when `attached: false`.
+- All layer-1 and layer-2 test cases from the QA plan above are implemented as written: multipart
+  shape + header assertions, first-attempt-success (no retry), retry-then-succeed, exhausted-retries
+  failure, plus the integration tests (create/update path pageId correctness, and the regression
+  guard that an attachment failure still lets the index upsert complete).
+- `npm run build && npm test` — 18 test files, 99 tests, all passing (includes the companion
+  Last-Modified-column plan's tests too, implemented in the same branch).
+
+**Layer 3 (live manual dry run) has not been run** — no live Confluence session available in this
+environment. Per this plan's own Verification gate above, this stays `active`, not `completed`, until
+that happens; recommend treating this the same as the original authoring plan was treated — hold off
+merging the PR until at least the create/update/versioning checks in layer 3 have run against a real
+space.

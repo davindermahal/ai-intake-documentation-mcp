@@ -111,3 +111,23 @@ companion plan.
    sync.
 3. Hand off to the companion `ai-intake-mcp` plan's own verification once this ships — its round-trip
    check depends on a real page written by this implementation.
+
+## Implementation notes (2026-09-07)
+
+Steps 1, 2, and 4 done on branch `add-guide-attachment-and-last-modified` (implemented together with
+the companion attachment plan, since both touch `index-table.ts`/`syncGuide.ts`). Step 3 needed no
+code change: `ensure_guide_index`'s bootstrap already calls `serializeIndexTable([])`, which now
+emits 5 columns automatically.
+
+One deviation from the design as written: `parseIndexTable` matches the 5th cell **positionally**
+(read when present, default `""` when absent), not by header text. The existing parser was already
+purely positional for all four original columns (it never read header text at all, just skipped row
+0) — matching that column by header text alone would have meant rewriting the whole parser's
+approach, well beyond this plan's "additive" scope. Positional-with-tolerance still satisfies the
+actual contract (5th column, appended after Tags) the companion `ai-intake-mcp` plan depends on; it's
+an implementation-strategy difference, not a shape difference.
+
+`npm run build && npm test` — Verification #1 — passes: 18 test files, 99 tests (includes the
+attachment plan's tests, implemented in the same branch). **Verification #2 (real dry run) has not
+been run** — no live Confluence session in this environment. This plan is not moving to `completed`
+yet; per its own Verification section, the live dry run is still required first.
