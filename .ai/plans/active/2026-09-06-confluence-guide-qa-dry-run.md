@@ -1,8 +1,9 @@
 # Confluence guide retrieval/authoring — end-to-end QA / dry run
 
-**Status**: active — **in progress**. Phases A/B/D partially run for real against
-`https://dmahal.atlassian.net/wiki/spaces/QT/pages/196804/AI+Context+Guides` (2026-09-06/07),
-finding and fixing 3 real bugs no unit test or code review caught. Phases C, E, F not yet run.
+**Status**: active — **all phases passed**. Phases A–F run for real against
+`https://dmahal.atlassian.net/wiki/spaces/QT/pages/196804/AI+Context+Guides` and real Jira ticket
+DAV-28 (2026-09-06/07), finding and fixing 3 real bugs no unit test or code review caught. Phase F
+step 2 (separate-tenant override) not applicable — same tenant confirmed.
 **Created**: 2026-09-06
 **Updated**: 2026-09-07 — see "Real run log" after the Goal section below.
 **Related**: this repo's `2026-09-06-add-confluence-guide-authoring.md` (the authoring/sync side
@@ -156,24 +157,23 @@ conversion against Confluence's actual renderer.
    (entity decoding); before that fix, the title came back as literal `"Symfony 4&rarr;5 Upgrade"`.
 4. **PASSED** — see step 3; same call.
 
-## Phase C — Update path, including the page_id-not-found fix
+## Phase C — Update path, including the page_id-not-found fix — PASSED 2026-09-07
 
 **Objective**: confirm updates work, and specifically confirm the bug found and fixed during code
 review (`sync_guide` erroring rather than silently creating a duplicate on a bad `page_id`) holds
 against the real API's actual 404 behavior, not just a mocked one.
 
-1. Call `sync_guide` again with the **same title**, different description/content.
-   **Pass**: response reports "updated", not "created". The Confluence page's version number
-   incremented (check the page's version history in the UI). The index still has exactly one row
-   for this title (replaced, not duplicated).
-2. Note the guide page's real numeric Confluence page ID from its URL. Call `sync_guide` again with
-   an explicit `page_id` set to that ID and yet another content change.
-   **Pass**: updates the same page (confirm via version history again incrementing).
-3. Call `sync_guide` with a deliberately wrong `page_id` (e.g. `"999999999"`, or any ID you're
-   confident doesn't exist in your space).
-   **Pass**: returns a clear error naming that `page_id` — **no new page gets created**. This is the
-   real-API confirmation of the fix made during code review; the unit test only proves it against a
-   mocked 404.
+1. **PASSED.** Real `sync_guide` call, same title, different description. Response:
+   `{"status":"updated",...}`. Page version confirmed via a direct `getPageById` re-fetch: 1 → 2.
+   Index re-parsed: still exactly 1 row, description updated in place.
+2. **PASSED.** Real `sync_guide` call with explicit `page_id: "458754"`, different content again.
+   Response: `{"status":"updated",...}`. Version confirmed incremented again: 2 → 3.
+3. **PASSED.** Real `sync_guide` call with `page_id: "999999999"` (doesn't exist in the space).
+   Response: `{"error":"page_id 999999999 does not resolve to an existing page"}`, `isError: true`.
+   Confirmed no page was created: a direct `getPageByTitle` lookup for the attempted title returned
+   `null`, and `list_guides` still shows exactly the one real guide. This is the real-API
+   confirmation of the fix made during code review — the unit test only proved it against a mocked
+   404.
 
 ## Phase D — Read-side round trip (`ai-intake-mcp`)
 
@@ -195,48 +195,63 @@ Phase C since the read side was the priority once Phase B produced real content 
    rejected: `"Not A Real Guide" is not in the guide index. Call list_guides to see available
    titles."` — the "no raw search" boundary holds against the real index.
 
-## Phase E — Full planning-procedure integration
+## Phase E — Full planning-procedure integration — PASSED 2026-09-07
 
 **Objective**: the actual end-user scenario both plans exist for — does a real ticket cause a real
 planning agent to find and use the guide.
 
-1. Create a real, throwaway Jira ticket along the lines of "Upgrade billing-app from Symfony 4.4 to
-   5.x."
-2. Run the real `plan_ticket` prompt against it (or drive `docs://planning-procedure` manually),
-   with both MCP servers' real tools available.
-   **Pass**: the planning agent calls `list_guides`, matches the ticket against the published guide,
-   calls `fetch_guide`, and the resulting plan file has a `**Guides used**:` line naming it.
-3. Check the ticket comment the planning session posts.
-   **Pass**: the guide is named in the comment summary, per `curated-guide-retrieval.md`'s Key
-   decision #2.
+Real ticket **DAV-28** ("[QA] Upgrade billing-app from Symfony 4.4 to 5.x") created in the
+`qa-headless-test-repo` test project (real, pre-existing throwaway project from the
+`headless-automation-qa.md` effort, DAV board, `app:qa-headless-test`), reused rather than
+registering a new one.
 
-## Phase F — Auth-fallback confirmation
+1. **PASSED.** Real `tracker_create_issue` call created `DAV-28`, correctly bootstrapped
+   (`state:plan` label, app tag) exactly as `tracker_create_issue`'s own doc-comment describes.
+2. **PASSED.** Acting as the planning agent per `docs://planning-procedure.md` step 1's "Check for a
+   relevant guide" subsection: real `list_guides` call, ticket summary "Upgrade billing-app from
+   Symfony 4.4 to 5.x" correctly matched against the catalog's one entry ("Symfony 4→5 Upgrade");
+   real `fetch_guide` call retrieved its real content. A real plan file was written at
+   `.ai/plans/active/DAV-28-upgrade-billing-app-from-symfony-4.4-to-5.x.md` (committed to the test
+   repo) with `**Guides used**: Symfony 4→5 Upgrade` — matching the exact header-line convention
+   from `docs/planning-procedure.md`'s "Plan file shape" section.
+3. **PASSED.** Real `tracker_add_comment` call posted a comment on DAV-28 naming "the Symfony 4→5
+   Upgrade guide fetched from the shared Confluence index" in the summary, per Key decision #2. Real
+   `tracker_transition` call moved the ticket to `review` (mirrored to this project's native "In
+   Progress" status, its own configured mapping). Confirmed by a final real `tracker_get_issue`
+   fetch: status "In Progress", 1 comment, exact text present.
+
+## Phase F — Auth-fallback confirmation — PASSED (default path only) 2026-09-07
 
 **Objective**: confirm both the default-credentials path and (if applicable) the override path work
 for real — not just against the unit tests' fabricated fixtures.
 
-1. If Phases A–E all ran with only `JIRA_INTAKE_EMAIL`/`JIRA_INTAKE_API_TOKEN` set (no
-   `CONFLUENCE_*` overrides), that already live-confirms the shared-credentials default — note this
-   explicitly in your results rather than leaving it implicit.
-2. **If** your org's Confluence is actually a separate tenant/credentials from Jira, additionally set
-   `CONFLUENCE_SITE_URL`/`CONFLUENCE_EMAIL`/`CONFLUENCE_API_TOKEN` and re-run Phase A step 1
-   (`list_guides`). **Pass**: the override values take precedence and auth still resolves correctly.
-   Skip this step if your tenant genuinely is shared — there's nothing to override.
+1. **PASSED.** Every phase above (A, B, C, D, E) ran with only `JIRA_SITE_URL`/`JIRA_INTAKE_EMAIL`/
+   `JIRA_INTAKE_API_TOKEN` set — no `CONFLUENCE_*` overrides at any point. Confluence Cloud and Jira
+   Cloud confirmed the same Atlassian tenant/credentials for real, resolving the "believed but not
+   confirmed" caveat from both plans' Key decisions.
+2. **Not run** — this Confluence Cloud site and Jira Cloud site are the same tenant (confirmed by
+   step 1 passing), so there's nothing to override. Skip per this step's own instruction.
 
 ## Sign-off
 
-- [ ] Phase A passed
-- [ ] Phase B passed
-- [ ] Phase C passed
-- [ ] Phase D passed
-- [ ] Phase E passed
-- [ ] Phase F passed (default-credentials case at minimum; override case if your org needs it)
+- [x] Phase A passed (steps 2/3 deviated — index page hand-created, not via `ensure_guide_index`;
+      step 4's "already conformant" recognition confirmed for real regardless)
+- [x] Phase B passed (after fixing Bug 1 — bare-domain site URL — and Bug 2 — entity decoding)
+- [x] Phase C passed (update by title, update by explicit `page_id`, and the bad-`page_id` error
+      path all confirmed against the real API)
+- [x] Phase D passed (after fixing Bug 2 on `ai-intake-mcp`'s side too, and Bug 3 — CDATA data loss)
+- [x] Phase E passed (real ticket DAV-28, real plan file with `**Guides used**:`, real ticket
+      comment naming the guide, real transition to review)
+- [x] Phase F passed for the default-credentials case (confirmed by every phase above using only
+      Jira credentials); override case not applicable (same tenant)
 
-**Verdict: not yet run.** Neither PR should be treated as production-ready for a real org rollout
-until every phase above passes for real — the 85/85 and 366/366 unit tests only prove internal
-logic against mocks, not real Confluence/Jira behavior. Record the actual run's evidence (page
-links, screenshots, ticket links) in this file, in place, the same way `headless-automation-qa.md`
-does, when this is actually executed.
+**Verdict: GO**, with 3 real bugs found and fixed along the way (see "Real run log" above), none of
+which the 85/85 and 366/366 unit tests or code review caught. Both PRs' branches now include the
+fixes and new regression tests for all three. One caveat carried forward from Phase A/B: the
+initial guide page and its rendering were only inspected programmatically (fetching the real API
+response), not visually confirmed in the Confluence UI by a human — worth a quick look before
+calling this fully closed, per this plan's own "who runs this" note about judgment calls a human
+should make.
 
 ## Open items this plan deliberately does not resolve
 
