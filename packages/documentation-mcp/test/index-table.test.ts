@@ -25,6 +25,21 @@ describe("index-table", () => {
     expect(parseIndexTable(storage)).toHaveLength(2);
   });
 
+  it("decodes named/numeric HTML entities Confluence introduces on save (found live, real Cloud instance)", () => {
+    const storage =
+      "<table><tbody><tr><th>Title</th><th>Description</th><th>Link</th><th>Tags</th></tr>" +
+      '<tr><td>Symfony 4&rarr;5 Upgrade</td><td>An em&mdash;dash &amp; a numeric ref: &#8594;</td>' +
+      '<td><a href="https://x/pages/1">https://x/pages/1</a></td><td>symfony</td></tr></tbody></table>';
+    expect(parseIndexTable(storage)).toEqual([
+      {
+        title: "Symfony 4→5 Upgrade",
+        description: "An em—dash & a numeric ref: →",
+        link: "https://x/pages/1",
+        tags: ["symfony"],
+      },
+    ]);
+  });
+
   describe("upsertIndexRow", () => {
     it("appends a new row when the title doesn't match", () => {
       const newRow: GuideIndexRow = { title: "Symfony 5→6 Upgrade", description: "d", link: "l", tags: [] };

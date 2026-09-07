@@ -16,8 +16,33 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/**
+ * Confluence's storage format doesn't just escape XML metacharacters -- it also autoformats plain
+ * Unicode typographic characters (an arrow typed as "->": found live, real Confluence Cloud
+ * behavior, not a hypothetical) into named HTML entities on save. Decoding only &amp;/&lt;/&gt;
+ * left those as literal "&rarr;" text on read-back. Numeric refs are decoded generically; the named
+ * list covers what's actually been observed plus Confluence's other common autoformat targets.
+ */
 function unescapeHtml(s: string): string {
-  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&rarr;/g, "→")
+    .replace(/&larr;/g, "←")
+    .replace(/&harr;/g, "↔")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/&hellip;/g, "…")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&rsquo;/g, "’")
+    .replace(/&ldquo;/g, "“")
+    .replace(/&rdquo;/g, "”")
+    .replace(/&amp;/g, "&");
 }
 
 function stripTags(s: string): string {
