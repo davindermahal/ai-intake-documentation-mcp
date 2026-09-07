@@ -13,7 +13,11 @@ import { checkDriftTool } from "./tools/checkDrift.js";
 import { writePlanTool } from "./tools/writePlan.js";
 import { listPlansTool } from "./tools/listPlans.js";
 import { transitionPlanTool } from "./tools/transitionPlan.js";
+import { ensureGuideIndexTool } from "./tools/ensureGuideIndex.js";
+import { listGuidesTool } from "./tools/listGuides.js";
+import { syncGuideTool } from "./tools/syncGuide.js";
 import { startDocumentationPrompt } from "./prompts/startDocumentation.js";
+import { writeGuidePrompt } from "./prompts/writeGuide.js";
 
 const TOOLS = [
   ensureAiDirTool,
@@ -28,6 +32,9 @@ const TOOLS = [
   writePlanTool,
   listPlansTool,
   transitionPlanTool,
+  ensureGuideIndexTool,
+  listGuidesTool,
+  syncGuideTool,
 ];
 
 async function main() {
@@ -45,6 +52,16 @@ async function main() {
       argsSchema: startDocumentationPrompt.argsSchema,
     },
     startDocumentationPrompt.handler as never,
+  );
+
+  server.registerPrompt(
+    writeGuidePrompt.name,
+    {
+      title: writeGuidePrompt.title,
+      description: writeGuidePrompt.description,
+      argsSchema: writeGuidePrompt.argsSchema,
+    },
+    writeGuidePrompt.handler as never,
   );
 
   const transport = new StdioServerTransport();
