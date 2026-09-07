@@ -1,0 +1,11 @@
+{
+  "id": "2026-09-06-confluence-guide-qa-dry-run",
+  "title": "Confluence guide retrieval/authoring — end-to-end QA / dry run",
+  "date": "2026-09-07T00:26:33.000Z",
+  "description": "Detailed, phased manual QA plan validating the full guide-authoring (documentation-mcp) to guide-retrieval (ai-intake-mcp) loop against a real Confluence Cloud space and real Jira ticket. Executed 2026-09-06/07 -- all phases passed (GO), finding and fixing 3 real bugs (bare-domain site URL, entity decoding in both repos, CDATA data loss) that 451 combined unit tests never caught.",
+  "ticket_key": null,
+  "status": "completed",
+  "created_by": "claude-code",
+  "approved_at": "2026-09-07T00:26:33.000Z",
+  "updated_at": "2026-09-07T04:40:31.762Z"
+}
