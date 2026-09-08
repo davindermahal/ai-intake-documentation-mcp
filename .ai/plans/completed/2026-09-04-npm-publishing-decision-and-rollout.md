@@ -1,6 +1,20 @@
 # npm publishing decision and rollout
 
-Status as of 2026-09-04. Carried forward from
+**Status**: complete — all three open questions below resolved, differently than originally framed.
+Both packages are live on public npm (`@davindermahal/documentation-mcp@0.3.0`,
+`@davindermahal/context-schema@0.1.1`, confirmed via `npm view`), and the sibling `ai-intake-mcp`
+repo (`@davindermahal/ai-intake-mcp@0.2.0`) shipped the same way. Versioning/release (open question
+#3) landed as a real CI workflow, not the "release script or changesets" the question posed:
+`.github/workflows/release.yml`, triggered by pushing an annotated tag matching
+`<package-dir>@<semver>` (this repo) / `v<semver>` (`ai-intake-mcp`), using npm's OIDC Trusted
+Publisher (no `NPM_TOKEN` secret) — verified via real, successful runs (`documentation-mcp@0.3.0`
+2026-09-08, `ai-intake-mcp v0.2.0` 2026-09-08, the latter after fixing two real CI failures live:
+missing `libsecret-1-0`, an `npm ci` install-scripts allowlist gap). Tag-vs-`package.json`-version
+mismatch and (this repo's monorepo case) a private-root canary both fail the job before any publish
+step, so a malformed tag or a stale version bump can't reach the registry.
+**Updated**: 2026-09-08
+
+Status as of 2026-09-04 (superseded above). Carried forward from
 `2026-09-04-backlog-after-tests-ci-harness-ticket-npm-publishing-ai-inta.md` (now `completed` — its
 other two items are done: the `ai-intake-harness` integration ticket was filed for real as
 [DAV-27](https://dmahal.atlassian.net/browse/DAV-27), and the `tracker_create_issue` tool that

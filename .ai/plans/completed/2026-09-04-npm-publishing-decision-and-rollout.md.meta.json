@@ -1,0 +1,11 @@
+{
+  "title": "npm publishing decision and rollout",
+  "description": "npm publishing for documentation-mcp/context-schema, resolved via a tag-triggered CI release workflow using npm OIDC trusted publishing (differently than the draft's own framing) — both packages live on public npm.",
+  "date": "2026-09-04T17:42:14.067Z",
+  "ticket_key": null,
+  "status": "completed",
+  "created_by": "human",
+  "approved_at": null,
+  "id": "2026-09-04-npm-publishing-decision-and-rollout",
+  "updated_at": "2026-09-08T19:15:00.000Z"
+}
