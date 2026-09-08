@@ -1,6 +1,6 @@
 {
   "name": "@davindermahal/documentation-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server that onboards a codebase for AI-agent-assisted development: scans the project, interviews the user, and maintains .ai/docs + .ai/context from an evidence archive",
   "license": "MIT",
   "type": "module",
