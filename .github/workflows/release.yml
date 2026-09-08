@@ -1,0 +1,117 @@
+name: Release
+
+# Triggered by pushing an annotated tag matching <package-dir-name>@<semver> (e.g.
+# documentation-mcp@0.3.0), created by hand after a deliberate version-bump commit -- this repo's
+# own .ai/plans/ convention is to only cut a release once a plan's "Status: complete, verdict GO"
+# verification has actually happened. This workflow does not decide *when* or *how much* to bump
+# version -- that's still a human call. It only automates what was previously a manual, entirely
+# unautomated `npm publish`.
+#
+# SAFETY: this repo's root package.json is "private": true and must never itself be published. A
+# bare `npm publish` at this repo's root does NOT respect that (confirmed live via
+# `npm publish --dry-run`: npm's `private` guard only fires inside its own --workspace iteration,
+# not a bare invocation -- a bare publish here would attempt to push the whole monorepo root
+# publicly). Every step below is written so there is no code path -- including a malformed tag,
+# a manual workflow re-run, or a future edit -- that can reach `npm publish` without an explicit
+# --workspace argument naming a real, non-private package directory.
+on:
+  push:
+    tags:
+      - "*@*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC trusted publishing (npm >=11.5.1) -- no NPM_TOKEN
+                       # secret needed; auth + provenance both happen automatically via the OIDC
+                       # token this permission lets the job request. Requires a one-time Trusted
+                       # Publisher configured on each package's npmjs.com settings page, naming
+                       # this exact repo + this exact workflow filename.
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail loud, no fallback: parse <package-dir>@<semver> out of the tag and confirm that
+      # directory actually exists as a real package. A tag that doesn't parse cleanly, or that
+      # names a directory that isn't there, stops the job here -- it never falls through to
+      # anything resembling a bare publish.
+      #
+      # Uses a single anchored regex (bash's =~ + BASH_REMATCH), not a %/## parameter-expansion
+      # split -- verified live that the split approach silently mis-parses a tag with no "@" at
+      # all (e.g. plain "documentation-mcp"): bash's ${TAG%@*}/${TAG##*@} are both no-ops when
+      # there's no "@" to strip, so PKG_NAME and TAG_VERSION both end up equal to the whole tag
+      # string, and the malformed tag "passes" this step (it would still be caught by the
+      # tag/version-match step below, but only by coincidence -- this step should reject it on
+      # its own).
+      - name: Parse and validate the release tag
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+
+          if [[ ! "$TAG" =~ ^([a-z0-9][a-z0-9-]*)@([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            echo "::error::Tag '$TAG' does not parse as <package-dir>@<semver>"
+            exit 1
+          fi
+          PKG_NAME="${BASH_REMATCH[1]}"
+          TAG_VERSION="${BASH_REMATCH[2]}"
+
+          if [ ! -f "packages/$PKG_NAME/package.json" ]; then
+            echo "::error::No packages/$PKG_NAME/package.json -- refusing to publish"
+            exit 1
+          fi
+
+          echo "PKG_NAME=$PKG_NAME" >> "$GITHUB_ENV"
+          echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./packages/$PKG_NAME/package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME (version $TAG_VERSION) does not match packages/$PKG_NAME/package.json version $PKG_VERSION at this commit"
+            exit 1
+          fi
+          echo "Tag $GITHUB_REF_NAME matches packages/$PKG_NAME/package.json version $PKG_VERSION"
+
+      - name: Private-flag canary
+        run: |
+          set -euo pipefail
+          PKG_PRIVATE="$(node -p "require('./packages/$PKG_NAME/package.json').private || false")"
+          if [ "$PKG_PRIVATE" = "true" ]; then
+            echo "::error::packages/$PKG_NAME is marked private -- refusing to publish"
+            exit 1
+          fi
+          ROOT_PRIVATE="$(node -p "require('./package.json').private || false")"
+          if [ "$ROOT_PRIVATE" != "true" ]; then
+            echo "::error::Root package.json is no longer private:true -- this workflow's safety assumptions no longer hold, refusing to run"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >=11.5.1; don't trust the runner image's bundled version to
+      # already satisfy that -- upgrade explicitly so OIDC auth is guaranteed to engage instead of
+      # silently falling through to a token-based path that has no token to find.
+      - run: npm install -g npm@latest
+      - run: npm --version
+
+      - run: npm ci
+
+      # Explicit dependency order, not the root `build` script's --workspaces iteration -- that
+      # currently only happens to visit context-schema before documentation-mcp because npm
+      # iterates workspaces alphabetically, not topologically. Fine for CI's own build+test gate,
+      # not something a release's correctness should depend on staying alphabetically lucky.
+      - name: Build (dependency order)
+        run: |
+          npm run build --workspace packages/context-schema
+          npm run build --workspace packages/documentation-mcp
+
+      - name: Test
+        run: npm test
+
+      - name: Publish to npm
+        run: npm publish --workspace "packages/$PKG_NAME"
