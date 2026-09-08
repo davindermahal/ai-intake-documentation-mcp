@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
@@ -44,8 +45,18 @@ const TOOLS = [
   syncGuideTool,
 ];
 
+// Read the real version from package.json rather than hand-syncing a second literal here -- this
+// drifted silently from 0.1.0 through two real version bumps (0.1.1, 0.2.0) before anyone noticed,
+// since nothing ever re-checks it. package.json is always published alongside dist/ regardless of
+// the "files" allowlist (npm always includes it), so ../package.json resolves correctly both from
+// source (packages/documentation-mcp/dist/index.js) and once installed
+// (node_modules/@davindermahal/documentation-mcp/dist/index.js). createRequire, not a JSON import
+// attribute, to avoid depending on this project's exact TS/Node JSON-module config.
+const require = createRequire(import.meta.url);
+const { version: SERVER_VERSION } = require("../package.json") as { version: string };
+
 export function createMcpServer(): McpServer {
-  const server = new McpServer({ name: "documentation-mcp", version: "0.1.0" });
+  const server = new McpServer({ name: "documentation-mcp", version: SERVER_VERSION });
 
   for (const tool of TOOLS) {
     server.registerTool(tool.name, { description: tool.description, inputSchema: tool.inputSchema }, tool.handler as never);

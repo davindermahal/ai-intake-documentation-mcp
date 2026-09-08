@@ -1,6 +1,14 @@
 import { createServer, request as httpRequest, type Server } from "node:http";
+import { createRequire } from "node:module";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHttpRequestListener, createMcpServer } from "../src/index.js";
+
+// Read the real version rather than hardcoding a copy of it -- a hardcoded literal here is
+// exactly what let src/index.ts's own serverInfo.version silently drift to "0.1.0" through two
+// real releases (0.1.1, 0.2.0) before anyone noticed: this test kept "passing" the whole time
+// because it was asserting the same stale value the source had, not the real one.
+const require = createRequire(import.meta.url);
+const { version: PKG_VERSION } = require("../package.json") as { version: string };
 
 let server: Server;
 let port: number;
@@ -62,7 +70,7 @@ describe("HTTP transport", () => {
 
     const dataLine = body.split("\n").find((line) => line.startsWith("data: "));
     const parsed = JSON.parse(dataLine!.slice("data: ".length));
-    expect(parsed.result.serverInfo).toEqual({ name: "documentation-mcp", version: "0.1.0" });
+    expect(parsed.result.serverInfo).toEqual({ name: "documentation-mcp", version: PKG_VERSION });
   });
 
   it("rejects a request with a non-localhost Host header", async () => {
