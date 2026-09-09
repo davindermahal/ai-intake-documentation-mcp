@@ -1,6 +1,6 @@
 {
   "name": "@davindermahal/confluence-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared Confluence Cloud transport: auth/config resolution, an HTTP client with retry/backoff, URL-to-page-ID parsing, and storage-format conversion. Transport only -- no product-specific policy.",
   "license": "MIT",
   "type": "module",
