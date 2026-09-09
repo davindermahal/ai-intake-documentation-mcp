@@ -1,0 +1,11 @@
+{
+  "title": "Extract a shared Confluence client package; add Confluence-link fetching to document_area/start_documentation",
+  "description": "Companion to ai-intake-mcp's confluence-references-in-planning.md: builds the shared @davindermahal/confluence-client package that plan deferred, migrates this server's own write-path Confluence tools onto it, and adds the same explicit-link fetch/citation capability to document_area and start_documentation.",
+  "date": "2026-09-09T01:30:42.370Z",
+  "ticket_key": null,
+  "status": "draft",
+  "created_by": "davinder (via Claude Code)",
+  "approved_at": null,
+  "id": "2026-09-09-extract-a-shared-confluence-client-package-add-confluence-li",
+  "updated_at": "2026-09-09T01:30:42.371Z"
+}
