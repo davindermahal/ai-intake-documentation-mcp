@@ -4,7 +4,7 @@ All notable changes to `@davindermahal/documentation-mcp` are documented here. V
 to tags (`documentation-mcp@X.Y.Z`) and npm releases; see this repo's `.ai/plans/` for the full
 design record behind each change.
 
-## Unreleased
+## 0.5.0 — 2026-09-08
 
 ### Added
 - `list_local_guides` and `publish_local_guides` tools: import guides authored in a separate repo
