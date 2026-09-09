@@ -1,5 +1,14 @@
 # Extract a shared Confluence client package; add Confluence-link fetching to document_area/start_documentation
 
+**Status**: complete — all 5 Implementation steps done, full monorepo suite green (`npm test`:
+136 passed; `npm run build` clean across `context-schema`/`confluence-client`/`documentation-mcp`),
+and Verification #2's real dry run now actually executed (not just planned) against the real
+`dmahal.atlassian.net` Confluence instance via a new `packages/documentation-mcp/scripts/
+confluence-smoke-check.ts` — **Verdict: GO**, no bugs found. See Verification below for the run's
+results.
+**Updated**: 2026-09-09 (recorded real-dry-run results; this file's stray duplicate under
+`.ai/plans/active/` was a bookkeeping leftover from the move to `completed/` and has been deleted).
+
 ## Motivation
 
 Companion to `ai-intake-mcp`'s `.ai/plans/draft/confluence-references-in-planning.md`, which adds
@@ -222,6 +231,36 @@ links at all, nothing changes from today's behavior.
    `sync_guide` still publishes/updates correctly through the new package (regression check on the
    migration), and that `fetch_confluence_pages` correctly fetches a real page's content plus
    `lastModified` for a fresh `document_area` session.
+
+   **Done, 2026-09-09.** Ran the new `npm run smoke:confluence`
+   (`packages/documentation-mcp/scripts/confluence-smoke-check.ts`), which calls this server's
+   actual `ensure_guide_index`/`sync_guide`/`fetch_confluence_pages` tool handlers directly — not
+   fakes, not a reimplementation — against the real `dmahal.atlassian.net` Confluence instance:
+   1. `ensure_guide_index` reported `conformant` against the real, already-existing guide index
+      page (`.../pages/196804/AI+Context+Guides`), confirming the migrated auth/config resolution
+      still finds it correctly.
+   2. `sync_guide` created a real throwaway page (`QA smoke test — confluence-client migration
+      (auto-cleanup)`, tagged `qa-smoke-test`) as a child of the index, attached `source.md`
+      (`attached: true`), and added its row to the real index table — the full write path
+      (`createPage`, `uploadAttachment`, index read-modify-write) working end to end through the
+      new package.
+   3. `fetch_confluence_pages`, called with that page's own URL, correctly returned its title,
+      storage-to-plain-text-converted content (confirmed containing the expected marker text), and
+      a non-empty `lastModified` — the new tool's real-fetch path confirmed, not just its unit
+      tests' fakes.
+   4. Cleanup (self-contained in the same script, not manual): the throwaway row was filtered out
+      of the index table and the index page updated back to its prior content, then the throwaway
+      page itself was deleted via a direct `DELETE /wiki/rest/api/content/{id}` call (HTTP 204 —
+      Confluence moves this to trash, so it's recoverable, not a hard delete). Confirmed no
+      lingering row or page from this run.
+
+   No bugs found. This script is now a permanent, reusable regression check (`npm run
+   smoke:confluence`), the same pattern `ai-intake-mcp` already established with `smoke:jira`.
 3. Once `ai-intake-mcp` migrates onto the package (its own later change), confirm its existing
    `list_guides`/`fetch_guide` behavior is unchanged — the package's public API must not have
    silently drifted from what that migration will expect, based on this plan's Design #1.
+
+   **Done.** `ai-intake-mcp`'s own migration (its `Migrate onto the shared
+   @davindermahal/confluence-client package` commit) is complete, with its own real-system QA
+   recorded in that repo's `.ai/plans/completed/confluence-references-in-planning.md` (**Verdict:
+   GO**) — confirming the package's public API held up across both consumers as designed.
