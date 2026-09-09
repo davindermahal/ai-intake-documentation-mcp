@@ -46,6 +46,18 @@ follow-up questions derived from what it finds (business rules, non-obvious deci
 rather than a fixed checklist, then writes both `.ai/docs` and `.ai/context` scoped to that area.
 This is the one to reach for repeatedly as a team documents its apps incrementally.
 
+Either prompt also accepts a `confluence_links` argument (or you can just name a page mid-session)
+— any relevant Confluence page you point at gets fetched and cited in the resulting docs via
+`fetch_confluence_pages`, the same "operator names a page, not a search" model `ai-intake-mcp` uses
+during planning.
+
+## Confluence guide catalog
+
+Separately from the docs above, `write_guide` (`/mcp__documentation-mcp__write_guide`) publishes or
+updates a guide (e.g. an upgrade walkthrough) on a shared Confluence index that `ai-intake-mcp`
+reads from during ticket planning — see the `ensure_guide_index`/`list_guides`/`sync_guide` tools
+below.
+
 ## Tools
 
 | Tool | Does |
@@ -62,6 +74,10 @@ This is the one to reach for repeatedly as a team documents its apps incremental
 | `write_plan` | Creates a plan file — required for all ticket work and all planning work. Starts `draft` by default; filename is `<date>-<slug>.md` (or `<ticket_key>-<date>-<slug>.md`), auto-deduplicated on collision. |
 | `list_plans` | Returns full plan metadata + content, optionally filtered by `status` and/or `ticket_key`. |
 | `transition_plan` | Moves a plan between `draft`/`active`/`completed` — physically relocates the file, not just a status flag. Sets `approved_at` the first (and only the first) time a plan reaches `active`. |
+| `ensure_guide_index` | Gets the shared Confluence guide index page into a good state: creates it (empty table) if `CONFLUENCE_GUIDE_INDEX_URL` is unset, otherwise confirms the existing page still resolves. Safe to call anytime, including repeatedly. |
+| `list_guides` | Fetches and parses the shared Confluence guide index into structured rows. |
+| `sync_guide` | Publishes a guide: creates/updates its Confluence page (as a child of the index), adds/updates its index row (stamping today's date into Last Modified), and best-effort attaches the source markdown as evidence. |
+| `fetch_confluence_pages` | Fetches specific Confluence pages by URL — operator-named links, not a catalog or search. Partial-failure tolerant: a URL that isn't a fetchable page on the configured site is silently skipped. |
 
 Typical call order: `ensure_ai_dir` → (if it reports `non-conformant`, ask the user, then
 `apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as needed) → `list_evidence` →
@@ -82,6 +98,10 @@ their file layout can't drift even though they're released independently.
 
 Full source, tests, and contribution notes live in the
 [monorepo](https://github.com/davindermahal/ai-intake-documentation-mcp).
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release history.
 
 ## License
 
