@@ -102,11 +102,18 @@ jobs:
       - run: npm ci
 
       # Explicit dependency order, not the root `build` script's --workspaces iteration -- that
-      # currently only happens to visit context-schema before documentation-mcp because npm
-      # iterates workspaces alphabetically, not topologically. Fine for CI's own build+test gate,
-      # not something a release's correctness should depend on staying alphabetically lucky.
+      # currently only happens to visit confluence-client/context-schema before documentation-mcp
+      # because npm iterates workspaces alphabetically, not topologically. Fine for CI's own
+      # build+test gate, not something a release's correctness should depend on staying
+      # alphabetically lucky. confluence-client must build before documentation-mcp (which imports
+      # its type declarations) -- omitting it here previously passed CI's own build+test gate by
+      # alphabetical coincidence but broke this workflow's own explicit-order build (confirmed
+      # live: documentation-mcp@0.4.0's first release run failed here with TS2307 "Cannot find
+      # module '@davindermahal/confluence-client'", since dist/ is gitignored and nothing had
+      # built it yet).
       - name: Build (dependency order)
         run: |
+          npm run build --workspace packages/confluence-client
           npm run build --workspace packages/context-schema
           npm run build --workspace packages/documentation-mcp
 
