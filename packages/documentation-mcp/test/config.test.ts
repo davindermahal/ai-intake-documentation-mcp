@@ -21,14 +21,16 @@ describe("loadLocalConfluenceConfig", () => {
     expect(loadLocalConfluenceConfig(envPath)).toEqual({
       confluenceSpaceKey: undefined,
       confluenceGuideIndexUrl: undefined,
+      guidesLocalDir: undefined,
     });
   });
 
   it("reads its own product-specific fields off the shared raw loader", () => {
-    writeFileSync(envPath, "CONFLUENCE_SPACE_KEY=ENG\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/1\n");
+    writeFileSync(envPath, "CONFLUENCE_SPACE_KEY=ENG\nCONFLUENCE_GUIDE_INDEX_URL=https://x/pages/1\nGUIDES_LOCAL_DIR=/tmp/guides\n");
     expect(loadLocalConfluenceConfig(envPath)).toEqual({
       confluenceSpaceKey: "ENG",
       confluenceGuideIndexUrl: "https://x/pages/1",
+      guidesLocalDir: "/tmp/guides",
     });
   });
 });

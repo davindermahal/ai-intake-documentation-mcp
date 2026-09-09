@@ -13,6 +13,8 @@ export { defaultConfigPath };
 export interface LocalConfluenceConfig {
   confluenceSpaceKey: string | undefined;
   confluenceGuideIndexUrl: string | undefined;
+  /** Local directory of guide .md files for list_local_guides/publish_local_guides -- see those tools. */
+  guidesLocalDir: string | undefined;
 }
 
 export function loadLocalConfluenceConfig(configPath: string = defaultConfigPath()): LocalConfluenceConfig {
@@ -20,6 +22,7 @@ export function loadLocalConfluenceConfig(configPath: string = defaultConfigPath
   return {
     confluenceSpaceKey: getConfigValue(raw, "CONFLUENCE_SPACE_KEY"),
     confluenceGuideIndexUrl: getConfigValue(raw, "CONFLUENCE_GUIDE_INDEX_URL"),
+    guidesLocalDir: getConfigValue(raw, "GUIDES_LOCAL_DIR"),
   };
 }
 

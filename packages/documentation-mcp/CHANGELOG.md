@@ -4,6 +4,17 @@ All notable changes to `@davindermahal/documentation-mcp` are documented here. V
 to tags (`documentation-mcp@X.Y.Z`) and npm releases; see this repo's `.ai/plans/` for the full
 design record behind each change.
 
+## Unreleased
+
+### Added
+- `list_local_guides` and `publish_local_guides` tools: import guides authored in a separate repo
+  (e.g. a shared `ai-context-guides` checkout) onto the Confluence guide index without hand-copying
+  them one at a time. `list_local_guides` reads `.md` files from a configurable local directory
+  (`GUIDES_LOCAL_DIR`, settable via its `guides_dir` argument) and reports which ones already exist
+  on the index; `publish_local_guides` creates a page + index row for selected filenames (or every
+  new one, via `["all"]`/omitted), always skipping — never overwriting — a guide already on the
+  index.
+
 ## 0.4.0 — 2026-09-08
 
 ### Added

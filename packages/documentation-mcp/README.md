@@ -58,6 +58,25 @@ updates a guide (e.g. an upgrade walkthrough) on a shared Confluence index that 
 reads from during ticket planning — see the `ensure_guide_index`/`list_guides`/`sync_guide` tools
 below.
 
+### Importing guides authored in another repo
+
+If guides are authored somewhere else (e.g. a separate `ai-context-guides` checkout, one `.md` file
+per guide, each starting with a `# Title` line followed by a description paragraph — no
+frontmatter needed) and you don't want to hand-copy them one at a time, use `list_local_guides` /
+`publish_local_guides` instead of `write_guide`.
+
+Point `list_local_guides` at that directory once, with `guides_dir: "/absolute/path/to/guides"` —
+it persists the path to `GUIDES_LOCAL_DIR` in the same config file `ensure_guide_index` writes to,
+so later calls (from either tool) can omit `guides_dir` and it's picked up automatically. It lists
+every local `.md` file's derived title/description plus `existsOnIndex`, so you can see what's new
+before publishing.
+
+Then call `publish_local_guides` with the `filenames` you picked (or omit it / pass `["all"]` for
+every guide not already on the index). It creates each one's Confluence page and index row exactly
+like `sync_guide` does for a brand-new guide — but a guide already on the index (by exact title) is
+always skipped, never overwritten; use `sync_guide` directly if you want to update one. Tags always
+come back empty (local guide files don't carry them) — add them in Confluence afterwards if wanted.
+
 ## Tools
 
 | Tool | Does |
@@ -78,6 +97,8 @@ below.
 | `list_guides` | Fetches and parses the shared Confluence guide index into structured rows. |
 | `sync_guide` | Publishes a guide: creates/updates its Confluence page (as a child of the index), adds/updates its index row (stamping today's date into Last Modified), and best-effort attaches the source markdown as evidence. |
 | `fetch_confluence_pages` | Fetches specific Confluence pages by URL — operator-named links, not a catalog or search. Partial-failure tolerant: a URL that isn't a fetchable page on the configured site is silently skipped. |
+| `list_local_guides` | Lists `.md` guide files in a local directory (`GUIDES_LOCAL_DIR`, or pass `guides_dir` once to set it) with derived title/description and `existsOnIndex` against the Confluence index. Read-only. |
+| `publish_local_guides` | Publishes selected local guide filenames (or every new one, via `["all"]`/omitted) onto the Confluence index — same page-creation path as `sync_guide`, but always skips a guide already on the index rather than updating it. |
 
 Typical call order: `ensure_ai_dir` → (if it reports `non-conformant`, ask the user, then
 `apply_ai_dir_migration`) → `scan_project` → `record_evidence` (as needed) → `list_evidence` →
