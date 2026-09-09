@@ -45,14 +45,21 @@ export const writeContextChunkTool = {
     }
 
     const ids = source_evidence_ids ?? [];
-    writeContextChunk(repoRoot, path, content, {
-      id: path,
-      title,
-      area,
-      risk,
-      updated_at: new Date().toISOString(),
-      source_evidence_ids: ids,
-    });
+    try {
+      writeContextChunk(repoRoot, path, content, {
+        id: path,
+        title,
+        area,
+        risk,
+        updated_at: new Date().toISOString(),
+        source_evidence_ids: ids,
+      });
+    } catch (err) {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2) }],
+        isError: true,
+      };
+    }
 
     const manifest = recordSynthesis(repoRoot, "context", path, ids);
     return { content: [{ type: "text" as const, text: JSON.stringify({ status: "written", path, manifest }, null, 2) }] };

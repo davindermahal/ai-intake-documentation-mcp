@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 
 /** Canonical `.ai/` layout. Single source of truth for both MCP servers. */
 export const AI_DIR = ".ai";
@@ -26,6 +26,21 @@ export const PLANS_COMPLETED_DIR = join(PLANS_DIR, "completed");
 
 export function resolveAiDir(repoRoot: string): string {
   return join(repoRoot, AI_DIR);
+}
+
+/**
+ * Joins `relPath` onto `baseDir` and rejects the result if it would land outside `baseDir`
+ * (via `..` segments or an absolute path). Callers that accept a caller-supplied relative path
+ * (e.g. an MCP tool's `path` argument) must route it through this instead of a bare `join`.
+ */
+export function resolveWithinDir(baseDir: string, relPath: string): string {
+  const resolvedBase = resolve(baseDir);
+  const resolvedPath = resolve(resolvedBase, relPath);
+  const rel = relative(resolvedBase, resolvedPath);
+  if (rel === ".." || rel.startsWith(`..${"/"}`) || isAbsolute(rel)) {
+    throw new Error(`path escapes base directory: ${relPath}`);
+  }
+  return resolvedPath;
 }
 
 /**

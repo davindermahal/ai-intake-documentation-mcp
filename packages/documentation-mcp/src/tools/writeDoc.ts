@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as z from "zod";
-import { DOCS_DIR, readManifest } from "@davindermahal/context-schema";
+import { DOCS_DIR, readManifest, resolveWithinDir } from "@davindermahal/context-schema";
 import { recordSynthesis } from "../synthesis.js";
 
 export const writeDocTool = {
@@ -36,7 +36,15 @@ export const writeDocTool = {
       };
     }
 
-    const fullPath = join(repoRoot, DOCS_DIR, path);
+    let fullPath: string;
+    try {
+      fullPath = resolveWithinDir(join(repoRoot, DOCS_DIR), path);
+    } catch (err) {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2) }],
+        isError: true,
+      };
+    }
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, content, "utf-8");
 

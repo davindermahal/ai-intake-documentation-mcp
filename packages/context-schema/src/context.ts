@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as z from "zod";
-import { CONTEXT_DIR } from "./paths.js";
+import { CONTEXT_DIR, resolveWithinDir } from "./paths.js";
 
 /**
  * Metadata for chunks under context/, so the harness can retrieve selectively by area instead
@@ -37,16 +37,18 @@ export function writeContextChunk(
   frontmatter: ContextChunkFrontmatter
 ): void {
   ContextChunkFrontmatterSchema.parse(frontmatter);
-  const contentPath = join(repoRoot, CONTEXT_DIR, relPath);
-  const metaPath = join(repoRoot, CONTEXT_DIR, contextChunkMetaPath(relPath));
+  const baseDir = join(repoRoot, CONTEXT_DIR);
+  const contentPath = resolveWithinDir(baseDir, relPath);
+  const metaPath = resolveWithinDir(baseDir, contextChunkMetaPath(relPath));
   mkdirSync(dirname(contentPath), { recursive: true });
   writeFileSync(contentPath, content, "utf-8");
   writeFileSync(metaPath, JSON.stringify(frontmatter, null, 2) + "\n", "utf-8");
 }
 
 export function readContextChunk(repoRoot: string, relPath: string): ContextChunk | null {
-  const contentPath = join(repoRoot, CONTEXT_DIR, relPath);
-  const metaPath = join(repoRoot, CONTEXT_DIR, contextChunkMetaPath(relPath));
+  const baseDir = join(repoRoot, CONTEXT_DIR);
+  const contentPath = resolveWithinDir(baseDir, relPath);
+  const metaPath = resolveWithinDir(baseDir, contextChunkMetaPath(relPath));
   if (!existsSync(contentPath) || !existsSync(metaPath)) return null;
   return {
     content: readFileSync(contentPath, "utf-8"),

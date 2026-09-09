@@ -1,6 +1,6 @@
 {
   "name": "@davindermahal/context-schema",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared types, validators, and file I/O for the .ai/ project-context directory layout",
   "license": "MIT",
   "type": "module",

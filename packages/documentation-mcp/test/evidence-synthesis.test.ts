@@ -115,3 +115,27 @@ describe("write_doc / write_context_chunk synthesis", () => {
     expect(remaining).toHaveLength(0);
   });
 });
+
+describe("write_doc / write_context_chunk path traversal", () => {
+  it("write_doc rejects a path that escapes .ai/docs/", async () => {
+    const result = await writeDocTool.handler({
+      repo_root: repo,
+      path: "../../etc/passwd",
+      content: "pwned",
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatchObject({ error: expect.stringContaining("escapes base directory") });
+  });
+
+  it("write_context_chunk rejects a path that escapes .ai/context/", async () => {
+    const result = await writeContextChunkTool.handler({
+      repo_root: repo,
+      path: "../../etc/passwd",
+      content: "pwned",
+      title: "x",
+      area: [],
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatchObject({ error: expect.stringContaining("escapes base directory") });
+  });
+});

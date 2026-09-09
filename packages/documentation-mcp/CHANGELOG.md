@@ -4,6 +4,13 @@ All notable changes to `@davindermahal/documentation-mcp` are documented here. V
 to tags (`documentation-mcp@X.Y.Z`) and npm releases; see this repo's `.ai/plans/` for the full
 design record behind each change.
 
+## 0.5.1 — 2026-09-09
+
+### Fixed
+- `write_doc`/`write_context_chunk` now reject a `path` argument that would escape `.ai/docs/` or
+  `.ai/context/` (via `../` segments or an absolute path) instead of writing outside those
+  directories. Routed through a new shared `resolveWithinDir` guard in `@davindermahal/context-schema`.
+
 ## 0.5.0 — 2026-09-08
 
 ### Added

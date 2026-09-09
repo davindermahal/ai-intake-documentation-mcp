@@ -35,4 +35,29 @@ describe("writeContextChunk / readContextChunk", () => {
   it("returns null when either the content or the sidecar is missing", () => {
     expect(readContextChunk(repo, "nonexistent.md")).toBeNull();
   });
+
+  it("rejects a relPath that escapes context/ via traversal", () => {
+    const frontmatter = {
+      id: "x",
+      title: "x",
+      area: [],
+      updated_at: "2026-09-04T00:00:00.000Z",
+      source_evidence_ids: [],
+    };
+    expect(() => writeContextChunk(repo, "../../etc/passwd", "pwned", frontmatter)).toThrow(
+      /escapes base directory/
+    );
+    expect(() => readContextChunk(repo, "../../etc/passwd")).toThrow(/escapes base directory/);
+  });
+
+  it("rejects an absolute relPath", () => {
+    const frontmatter = {
+      id: "x",
+      title: "x",
+      area: [],
+      updated_at: "2026-09-04T00:00:00.000Z",
+      source_evidence_ids: [],
+    };
+    expect(() => writeContextChunk(repo, "/etc/passwd", "pwned", frontmatter)).toThrow(/escapes base directory/);
+  });
 });
