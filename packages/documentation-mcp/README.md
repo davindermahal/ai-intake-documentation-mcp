@@ -38,6 +38,14 @@ anything else it notices missing) instead of guessing, records your answers as e
 writes the resulting docs. Calling the tools below directly also works, in the order described
 under "Typical call order".
 
+For documenting one specific part of the system — a directory, module, feature, or flow — instead
+of a whole-repo pass, run the `document_area` prompt (`/mcp__documentation-mcp__document_area`,
+optionally with an `area` argument, e.g. `/mcp__documentation-mcp__document_area src/billing`). It
+skips the drift check and whole-repo scan, reads the actual code in that area, asks you dynamic
+follow-up questions derived from what it finds (business rules, non-obvious decisions, edge cases)
+rather than a fixed checklist, then writes both `.ai/docs` and `.ai/context` scoped to that area.
+This is the one to reach for repeatedly as a team documents its apps incrementally.
+
 ## Tools
 
 | Tool | Does |

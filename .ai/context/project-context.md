@@ -34,6 +34,15 @@
   itself, so calling the tools directly in the documented order is equivalent. This resync-aware
   behavior was added specifically so a user doesn't have to call `check_drift`/`scan_project` as
   raw tools and be left to figure out the next step themselves — that gap was direct user feedback.
+- The `document_area` MCP prompt (`src/prompts/documentArea.ts`) is the lighter counterpart for
+  documenting one directory/module/feature/flow at a time: it takes an optional `area` argument,
+  skips `check_drift`/`scan_project` entirely, and its instructions are built by a function of
+  `area` rather than a static string (step 1 confirms the given scope vs. asking for one). Its
+  step 4 explicitly tells the agent to derive follow-up questions from what it actually read in
+  that area — not `scan_project`'s fixed `open_questions` (which are generic
+  purpose/users/constraints questions that don't fit a narrow investigation). Added on direct user
+  feedback that teams documenting an already-onboarded repo incrementally, area by area, shouldn't
+  pay the onboarding/drift-check ceremony on every single call.
 - Tool count was deliberately reduced: `detect_ai_dir`/`init_ai_scaffold`/`upgrade_ai_dir`/
   `propose_ai_dir_migration` are gone, folded into one `ensure_ai_dir` tool. Only
   `apply_ai_dir_migration` stayed separate, since migrating foreign content is destructive and

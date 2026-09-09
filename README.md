@@ -87,6 +87,14 @@ notices missing) instead of guessing, records your answers as evidence, and writ
 `.ai/docs` / `.ai/context`. Re-run it any time — first pass or later resync — instead of calling
 `check_drift`/`scan_project` directly.
 
+To document one specific part of the system instead of the whole repo, run `document_area`
+(`/mcp__documentation-mcp__document_area`, optionally with an `area` argument like `src/billing`).
+It skips the drift check and whole-repo scan, has the agent actually read the code in that area,
+asks dynamic follow-up questions derived from what it finds there — business rules, non-obvious
+decisions, edge cases — rather than a fixed checklist, then writes `.ai/docs` / `.ai/context`
+scoped to just that area. This is the prompt to reach for repeatedly as a team documents its apps
+incrementally, one area at a time.
+
 ## Tools
 
 | Tool | Does |

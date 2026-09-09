@@ -15,7 +15,11 @@ development. Pointed at a project, it:
 
 The whole flow above is also packaged as a single `start_documentation` MCP prompt (in Claude
 Code, the slash command `/mcp__documentation-mcp__start_documentation`), so a caller doesn't need
-to know the tool call order by heart to kick off or resume onboarding.
+to know the tool call order by heart to kick off or resume onboarding. A second prompt,
+`document_area` (optionally taking an `area` argument), documents one directory/module/feature at
+a time instead of the whole repo — no drift check, no whole-repo scan, and its follow-up questions
+are derived from what the agent actually reads in that area rather than a fixed list. It's meant
+for the common case once a repo is already onboarded: documenting it incrementally, area by area.
 
 ## Why it exists
 

@@ -30,12 +30,14 @@ The MCP server itself (stdio transport, `@modelcontextprotocol/server` v2). Each
 `{ name, description, inputSchema, handler }` object under `src/tools/`, registered via
 `server.registerTool` in `src/index.ts`. `src/prompts/` holds MCP prompts the same way (plain
 `{ name, title, description, argsSchema, handler }` objects, registered via
-`server.registerPrompt`) — currently just `startDocumentation.ts`, whose handler returns a single
-user-role message containing the full onboarding walkthrough as instructional text rather than
-executing any tool itself. A prompt exists as a convenience wrapper around a known-good tool call
-order, not as a new capability — everything it tells the calling agent to do is already possible
-by calling the tools directly, which is why it carries no logic of its own beyond the instructions
-string. Tool call order encodes the actual dependency graph:
+`server.registerPrompt`) — `startDocumentation.ts`, `writeGuide.ts`, and `documentArea.ts`, each a
+handler that returns a single user-role message containing instructional text rather than executing
+any tool itself. A prompt exists as a convenience wrapper around a known-good tool call order, not
+as a new capability — everything it tells the calling agent to do is already possible by calling the
+tools directly, which is why it carries no logic of its own beyond the instructions string (with one
+exception: `documentArea.ts`'s instructions are a function of its optional `area` arg, not a static
+string, since the wording of step 1 differs depending on whether the caller already named a scope).
+Tool call order encodes the actual dependency graph:
 
 `ensure_ai_dir` (absent → init, outdated → migrate/backfill, non-conformant → report only, ask the
 user, then `apply_ai_dir_migration`) → on a repo already scanned before (`conformant`/`upgraded`,
@@ -49,6 +51,19 @@ docs/context are. `start_documentation` wraps the whole ensure → check-drift �
 notice staleness themselves by calling `check_drift`/`scan_project` as raw tools and being left to
 figure out the next step (the gap that motivated adding the drift check here rather than leaving it
 a separately-called tool only).
+
+`document_area` is a second, deliberately lighter prompt for the same tool set: instead of a
+whole-repo onboarding/resync pass, it scopes to one directory/module/feature the caller names (an
+`area` prompt argument, or asked for directly if omitted), skips `check_drift`/`scan_project`
+entirely, and has the calling agent read that area's actual source before writing anything.
+Its step 4 explicitly tells the agent to derive follow-up questions from what it just read (magic
+numbers, asymmetric handling of similar-looking cases, unexplained external-system assumptions)
+rather than reusing `scan_project`'s fixed `open_questions` list, which is generic onboarding
+material (project purpose/users/constraints) that doesn't fit a narrow "how does this area work"
+investigation. It ends the same way as `start_documentation` — `record_evidence` →
+`list_evidence` → `write_doc` / `write_context_chunk` — just scoped to the one area throughout, and
+was added specifically so a team documenting many areas of an already-onboarded app one at a time
+doesn't pay the onboarding/drift-check ceremony on every single call.
 
 `ensure_ai_dir` itself used to be four separate tools (`detect_ai_dir`, `init_ai_scaffold`,
 `upgrade_ai_dir`, `propose_ai_dir_migration`) before being folded into one. The fold only works

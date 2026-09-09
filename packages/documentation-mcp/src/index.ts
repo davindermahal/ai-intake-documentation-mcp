@@ -26,6 +26,7 @@ import { listGuidesTool } from "./tools/listGuides.js";
 import { syncGuideTool } from "./tools/syncGuide.js";
 import { startDocumentationPrompt } from "./prompts/startDocumentation.js";
 import { writeGuidePrompt } from "./prompts/writeGuide.js";
+import { documentAreaPrompt } from "./prompts/documentArea.js";
 
 const TOOLS = [
   ensureAiDirTool,
@@ -80,6 +81,16 @@ export function createMcpServer(): McpServer {
       argsSchema: writeGuidePrompt.argsSchema,
     },
     writeGuidePrompt.handler as never,
+  );
+
+  server.registerPrompt(
+    documentAreaPrompt.name,
+    {
+      title: documentAreaPrompt.title,
+      description: documentAreaPrompt.description,
+      argsSchema: documentAreaPrompt.argsSchema,
+    },
+    documentAreaPrompt.handler as never,
   );
 
   return server;
