@@ -1,13 +1,29 @@
-import type { ResolvedConfluenceAuth } from "../config.js";
-
 export class ConfluenceApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly statusText: string,
-    public readonly body: string
+    public readonly body: string,
   ) {
     super(`Confluence API error ${status} ${statusText}: ${body}`);
   }
+}
+
+export type FetchLike = typeof fetch;
+
+const MAX_ATTEMPTS = 3;
+const BASE_BACKOFF_MS = 1000;
+const MAX_BACKOFF_MS = 8000;
+
+function backoffMs(attempt: number): number {
+  return Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS);
+}
+
+/** Retry-After is either a whole number of seconds, or an HTTP-date (RFC 7231 §7.1.3). */
+function retryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined;
+  if (/^\d+$/.test(header.trim())) return Number(header) * 1000;
+  const dateMs = Date.parse(header);
+  return Number.isNaN(dateMs) ? undefined : Math.max(0, dateMs - Date.now());
 }
 
 export interface ConfluencePage {
@@ -16,20 +32,16 @@ export interface ConfluencePage {
   version: number;
   url: string;
   storageBody: string;
+  /** ISO timestamp of the page's last edit (`version.when`), when the API response included it. */
+  lastModified?: string;
 }
 
 interface RawConfluencePage {
   id: string;
   title: string;
-  version: { number: number };
+  version: { number: number; when?: string };
   body?: { storage?: { value: string } };
   _links?: { webui?: string; base?: string };
-}
-
-/** Confluence Cloud page URLs contain the numeric id as .../pages/<id>/..., or ?pageId=<id>. */
-export function extractPageId(url: string): string | null {
-  const match = url.match(/\/pages\/(\d+)/) ?? url.match(/[?&]pageId=(\d+)/);
-  return match ? match[1] : null;
 }
 
 function toConfluencePage(siteUrl: string, raw: RawConfluencePage): ConfluencePage {
@@ -41,11 +53,18 @@ function toConfluencePage(siteUrl: string, raw: RawConfluencePage): ConfluencePa
     version: raw.version.number,
     url: webui ? `${base}${webui}` : `${siteUrl}/wiki/pages/viewpage.action?pageId=${raw.id}`,
     storageBody: raw.body?.storage?.value ?? "",
+    lastModified: raw.version.when,
   };
 }
 
-export interface ConfluenceClientOptions extends ResolvedConfluenceAuth {
-  fetchImpl?: typeof fetch;
+export interface ConfluenceClientOptions {
+  siteUrl: string;
+  email: string;
+  apiToken: string;
+  /** Substituted directly in tests -- no real HTTP in unit tests. */
+  fetchImpl?: FetchLike;
+  /** Substituted in tests to avoid real delays during retry-backoff assertions. */
+  sleepImpl?: (ms: number) => Promise<void>;
 }
 
 export interface AttachmentResult {
@@ -57,32 +76,44 @@ interface RawAttachmentResponse {
   results: Array<{ id: string; title: string }>;
 }
 
-const ATTACHMENT_UPLOAD_ATTEMPTS = 3;
-const ATTACHMENT_RETRY_DELAY_MS = 50;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
- * Write-capable Confluence client, targeting REST API v1 (/wiki/rest/api/content — confirmed
- * correct for Confluence Cloud, the deployment in use). Mirrors ai-intake-mcp's JiraClient pattern:
- * one auth-header chokepoint, injectable fetch for tests, a typed error class for non-2xx.
+ * Confluence Cloud REST API v1 client (`/wiki/rest/api/content`). One auth-header chokepoint,
+ * injectable fetch/sleep for tests, a typed error for non-2xx, and generic 429/5xx retry with
+ * `Retry-After` awareness and capped exponential backoff on every request -- adopted from
+ * `ai-intake-mcp`'s implementation as the shared baseline (extract-a-shared-confluence-client-package
+ * plan, Key decision #2): this repo's write calls never had real retry logic before.
  */
 export class ConfluenceClient {
   private readonly siteUrl: string;
   private readonly authHeader: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
+  private readonly sleepImpl: (ms: number) => Promise<void>;
 
   constructor(options: ConfluenceClientOptions) {
     const normalized = /^https?:\/\//.test(options.siteUrl) ? options.siteUrl : `https://${options.siteUrl}`;
     this.siteUrl = normalized.replace(/\/+$/, "");
     this.authHeader = "Basic " + Buffer.from(`${options.email}:${options.apiToken}`).toString("base64");
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.sleepImpl = options.sleepImpl ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  }
+
+  /** Retries 429/5xx responses; every other status (including a thrown network error) surfaces immediately. */
+  private async fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const res = await this.fetchImpl(url, init);
+      const isLastAttempt = attempt === MAX_ATTEMPTS - 1;
+      if ((res.status === 429 || res.status >= 500) && !isLastAttempt) {
+        await this.sleepImpl(retryAfterMs(res.headers.get("Retry-After")) ?? backoffMs(attempt));
+        continue;
+      }
+      return res;
+    }
+    // Unreachable: the loop always returns on its last iteration.
+    throw new Error("Confluence request retry loop exited unexpectedly.");
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await this.fetchImpl(`${this.siteUrl}${path}`, {
+    const res = await this.fetchWithRetry(`${this.siteUrl}${path}`, {
       ...init,
       headers: {
         Authorization: this.authHeader,
@@ -95,7 +126,13 @@ export class ConfluenceClient {
       const body = await res.text().catch(() => "");
       throw new ConfluenceApiError(res.status, res.statusText, body);
     }
-    return (await res.json()) as T;
+    if (res.status === 204) return undefined as T;
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }
+
+  get<T>(path: string): Promise<T> {
+    return this.request<T>(path);
   }
 
   async getPageById(pageId: string): Promise<ConfluencePage | null> {
@@ -150,6 +187,13 @@ export class ConfluenceClient {
     return toConfluencePage(this.siteUrl, page);
   }
 
+  private async findAttachmentByFilename(pageId: string, filename: string): Promise<{ id: string } | null> {
+    const query = new URLSearchParams({ filename });
+    const json = await this.request<RawAttachmentResponse>(`/wiki/rest/api/content/${pageId}/child/attachment?${query.toString()}`);
+    const match = json.results[0];
+    return match ? { id: match.id } : null;
+  }
+
   /**
    * Uploads (or, on a repeat call with the same filename, versions) a file attachment on a page.
    *
@@ -161,37 +205,12 @@ export class ConfluenceClient {
    * The actual API requires looking up the existing attachment by filename first, then POSTing to
    * .../child/attachment/{attachmentId}/data to version it if found.
    *
-   * Retries transient failures a few times before giving up (evidence, not a hard requirement --
-   * callers are expected to tolerate and report a final failure rather than treat it as fatal).
+   * The upload POST goes through the same 429/5xx retry as every other request; unlike this
+   * method's previous repo-local implementation, a non-retryable failure (e.g. a 400) is no longer
+   * retried blindly a fixed number of times -- callers still tolerate and report a final failure
+   * rather than treat it as fatal (see `sync_guide`'s attachment handling).
    */
   async uploadAttachment(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= ATTACHMENT_UPLOAD_ATTEMPTS; attempt++) {
-      try {
-        return await this.uploadAttachmentOnce(params);
-      } catch (err) {
-        lastError = err;
-        if (attempt < ATTACHMENT_UPLOAD_ATTEMPTS) await sleep(ATTACHMENT_RETRY_DELAY_MS);
-      }
-    }
-    throw lastError;
-  }
-
-  private async findAttachmentByFilename(pageId: string, filename: string): Promise<{ id: string } | null> {
-    const query = new URLSearchParams({ filename });
-    const res = await this.fetchImpl(`${this.siteUrl}/wiki/rest/api/content/${pageId}/child/attachment?${query.toString()}`, {
-      headers: { Authorization: this.authHeader, Accept: "application/json" },
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new ConfluenceApiError(res.status, res.statusText, body);
-    }
-    const json = (await res.json()) as RawAttachmentResponse;
-    const match = json.results[0];
-    return match ? { id: match.id } : null;
-  }
-
-  private async uploadAttachmentOnce(params: { pageId: string; filename: string; content: string; mimeType: string }): Promise<AttachmentResult> {
     const existing = await this.findAttachmentByFilename(params.pageId, params.filename);
     const path = existing
       ? `/wiki/rest/api/content/${params.pageId}/child/attachment/${existing.id}/data`
@@ -203,7 +222,7 @@ export class ConfluenceClient {
     const form = new FormData();
     form.append("file", new Blob([params.content], { type: params.mimeType }), params.filename);
 
-    const res = await this.fetchImpl(`${this.siteUrl}${path}`, {
+    const res = await this.fetchWithRetry(`${this.siteUrl}${path}`, {
       method: "POST",
       headers: {
         Authorization: this.authHeader,
@@ -220,4 +239,26 @@ export class ConfluenceClient {
     const result = "results" in json ? json.results[0] : json;
     return { id: result.id, title: result.title };
   }
+}
+
+/** Confluence Cloud page URLs contain the numeric id as .../pages/<id>/..., or ?pageId=<id>. */
+export function extractPageIdFromUrl(url: string): string | undefined {
+  const spacesMatch = url.match(/\/pages\/(\d+)(?:\/|$)/);
+  if (spacesMatch) return spacesMatch[1];
+  const viewpageMatch = url.match(/[?&]pageId=(\d+)/);
+  if (viewpageMatch) return viewpageMatch[1];
+  return undefined;
+}
+
+/** Fetches a page's storage-format body (plus version/lastModified) directly from its full URL. */
+export async function fetchPageByUrl(client: ConfluenceClient, url: string): Promise<ConfluencePage> {
+  const pageId = extractPageIdFromUrl(url);
+  if (!pageId) {
+    throw new Error(`Could not extract a Confluence page ID from URL: ${url}`);
+  }
+  const page = await client.getPageById(pageId);
+  if (!page) {
+    throw new Error(`Confluence page not found: ${url}`);
+  }
+  return page;
 }

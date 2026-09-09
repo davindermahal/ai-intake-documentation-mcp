@@ -24,6 +24,7 @@ import { transitionPlanTool } from "./tools/transitionPlan.js";
 import { ensureGuideIndexTool } from "./tools/ensureGuideIndex.js";
 import { listGuidesTool } from "./tools/listGuides.js";
 import { syncGuideTool } from "./tools/syncGuide.js";
+import { fetchConfluencePagesTool } from "./tools/fetchConfluencePages.js";
 import { startDocumentationPrompt } from "./prompts/startDocumentation.js";
 import { writeGuidePrompt } from "./prompts/writeGuide.js";
 import { documentAreaPrompt } from "./prompts/documentArea.js";
@@ -44,6 +45,7 @@ const TOOLS = [
   ensureGuideIndexTool,
   listGuidesTool,
   syncGuideTool,
+  fetchConfluencePagesTool,
 ];
 
 // Read the real version from package.json rather than hand-syncing a second literal here -- this

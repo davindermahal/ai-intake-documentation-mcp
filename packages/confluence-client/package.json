@@ -1,0 +1,34 @@
+{
+  "name": "@davindermahal/confluence-client",
+  "version": "0.1.0",
+  "description": "Shared Confluence Cloud transport: auth/config resolution, an HTTP client with retry/backoff, URL-to-page-ID parsing, and storage-format conversion. Transport only -- no product-specific policy.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davindermahal/ai-intake-documentation-mcp.git",
+    "directory": "packages/confluence-client"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^24.0.0"
+  }
+}

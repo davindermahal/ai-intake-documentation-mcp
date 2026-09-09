@@ -1,6 +1,6 @@
 {
   "name": "@davindermahal/documentation-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "MCP server that onboards a codebase for AI-agent-assisted development: scans the project, interviews the user, and maintains .ai/docs + .ai/context from an evidence archive",
   "license": "MIT",
   "type": "module",
@@ -23,6 +23,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@davindermahal/confluence-client": "^0.1.0",
     "@davindermahal/context-schema": "^0.1.0",
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",

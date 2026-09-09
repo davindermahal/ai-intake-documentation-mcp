@@ -1,7 +1,12 @@
 import * as z from "zod";
-import { loadConfluenceConfig, resolveConfluenceAuth } from "../config.js";
-import { ConfluenceClient, extractPageId } from "../confluence/client.js";
-import { markdownToStorage } from "../confluence/markdown-to-storage.js";
+import {
+  ConfluenceClient,
+  extractPageIdFromUrl,
+  loadConfluenceConfig,
+  markdownToStorage,
+  resolveConfluenceAuth,
+} from "@davindermahal/confluence-client";
+import { loadLocalConfluenceConfig } from "../config.js";
 import { parseIndexTable, serializeIndexTable, upsertIndexRow } from "../confluence/index-table.js";
 
 function errorResult(message: string) {
@@ -38,14 +43,14 @@ export const syncGuideTool = {
     tags: string[];
     page_id?: string;
   }) => {
-    const config = loadConfluenceConfig();
-    if (!config.confluenceGuideIndexUrl) {
+    const localConfig = loadLocalConfluenceConfig();
+    if (!localConfig.confluenceGuideIndexUrl) {
       return errorResult("not-configured: CONFLUENCE_GUIDE_INDEX_URL is not set. Run ensure_guide_index first.");
     }
-    if (!config.confluenceSpaceKey) {
+    if (!localConfig.confluenceSpaceKey) {
       return errorResult("not-configured: CONFLUENCE_SPACE_KEY is not set.");
     }
-    const auth = resolveConfluenceAuth(config);
+    const auth = resolveConfluenceAuth(loadConfluenceConfig());
     if (!auth) {
       return errorResult(
         "not-configured: set JIRA_SITE_URL/JIRA_INTAKE_EMAIL/JIRA_INTAKE_API_TOKEN (or the CONFLUENCE_* overrides) in ~/.config/ai-intake-mcp/.env"
@@ -54,17 +59,17 @@ export const syncGuideTool = {
 
     const client = new ConfluenceClient(auth);
 
-    const indexPageId = extractPageId(config.confluenceGuideIndexUrl);
+    const indexPageId = extractPageIdFromUrl(localConfig.confluenceGuideIndexUrl);
     const indexPage = indexPageId ? await client.getPageById(indexPageId) : null;
     if (!indexPage) {
-      return errorResult(`index page not found at ${config.confluenceGuideIndexUrl}`);
+      return errorResult(`index page not found at ${localConfig.confluenceGuideIndexUrl}`);
     }
 
     const storageBody = markdownToStorage(content);
 
     const existing = page_id
       ? await client.getPageById(page_id)
-      : await client.getPageByTitle({ spaceKey: config.confluenceSpaceKey, title });
+      : await client.getPageByTitle({ spaceKey: localConfig.confluenceSpaceKey, title });
 
     if (page_id && !existing) {
       return errorResult(`page_id ${page_id} does not resolve to an existing page`);
@@ -72,7 +77,7 @@ export const syncGuideTool = {
 
     const guidePage = existing
       ? await client.updatePage({ pageId: existing.id, title, storageBody, version: existing.version })
-      : await client.createPage({ spaceKey: config.confluenceSpaceKey, title, storageBody, parentId: indexPage.id });
+      : await client.createPage({ spaceKey: localConfig.confluenceSpaceKey, title, storageBody, parentId: indexPage.id });
     const status = existing ? "updated" : "created";
 
     // Best-effort: the attachment is reference/evidence, never a gate on sync_guide's success --

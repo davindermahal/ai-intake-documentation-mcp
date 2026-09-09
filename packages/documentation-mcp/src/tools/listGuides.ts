@@ -1,6 +1,6 @@
 import * as z from "zod";
-import { loadConfluenceConfig, resolveConfluenceAuth } from "../config.js";
-import { ConfluenceClient, extractPageId } from "../confluence/client.js";
+import { ConfluenceClient, extractPageIdFromUrl, loadConfluenceConfig, resolveConfluenceAuth } from "@davindermahal/confluence-client";
+import { loadLocalConfluenceConfig } from "../config.js";
 import { parseIndexTable } from "../confluence/index-table.js";
 
 export const listGuidesTool = {
@@ -12,8 +12,8 @@ export const listGuidesTool = {
     "last publish of that row, or \"\" if the row predates this column. Read-only.",
   inputSchema: z.object({}),
   handler: async () => {
-    const config = loadConfluenceConfig();
-    if (!config.confluenceGuideIndexUrl) {
+    const localConfig = loadLocalConfluenceConfig();
+    if (!localConfig.confluenceGuideIndexUrl) {
       return {
         content: [
           {
@@ -25,7 +25,7 @@ export const listGuidesTool = {
       };
     }
 
-    const auth = resolveConfluenceAuth(config);
+    const auth = resolveConfluenceAuth(loadConfluenceConfig());
     if (!auth) {
       return {
         content: [
@@ -43,11 +43,11 @@ export const listGuidesTool = {
     }
 
     const client = new ConfluenceClient(auth);
-    const pageId = extractPageId(config.confluenceGuideIndexUrl);
+    const pageId = extractPageIdFromUrl(localConfig.confluenceGuideIndexUrl);
     const page = pageId ? await client.getPageById(pageId) : null;
     if (!page) {
       return {
-        content: [{ type: "text" as const, text: JSON.stringify({ error: `index page not found at ${config.confluenceGuideIndexUrl}` }, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify({ error: `index page not found at ${localConfig.confluenceGuideIndexUrl}` }, null, 2) }],
         isError: true,
       };
     }

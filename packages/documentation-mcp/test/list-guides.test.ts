@@ -7,8 +7,8 @@ import { textOf } from "./helpers.js";
 
 const INDEX_STORAGE = serializeIndexTable([{ title: "Symfony 4→5 Upgrade", description: "d", link: "https://x/pages/1", tags: ["symfony"], lastModified: "2026-09-06" }]);
 
-vi.mock("../src/confluence/client.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/confluence/client.js")>();
+vi.mock("@davindermahal/confluence-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@davindermahal/confluence-client")>();
   return {
     ...actual,
     ConfluenceClient: class {

@@ -7,6 +7,10 @@ describe("document_area prompt", () => {
     expect(documentAreaPrompt.argsSchema.safeParse({ area: "src/billing" }).success).toBe(true);
   });
 
+  it("takes an optional confluence_links argument", () => {
+    expect(documentAreaPrompt.argsSchema.safeParse({ confluence_links: "https://x/pages/1" }).success).toBe(true);
+  });
+
   it("asks the user for scope when no area argument is given", async () => {
     const result = await documentAreaPrompt.handler({});
     const text = result.messages[0].content.text;
@@ -31,6 +35,26 @@ describe("document_area prompt", () => {
     for (const tool of ["ensure_ai_dir", "record_evidence", "list_evidence", "write_doc", "write_context_chunk"]) {
       expect(text).toContain(tool);
     }
+  });
+
+  it("tells the agent to fetch named Confluence links and cite them as existing-docs evidence", async () => {
+    const result = await documentAreaPrompt.handler({});
+    const text = result.messages[0].content.text;
+    expect(text).toContain("fetch_confluence_pages");
+    expect(text).toContain('source: "existing-docs"');
+    expect(text).toContain("lastModified");
+  });
+
+  it("triggers the Confluence step on a mid-conversation mention, not only the confluence_links argument", async () => {
+    const result = await documentAreaPrompt.handler({});
+    const text = result.messages[0].content.text;
+    expect(text.toLowerCase()).toContain("come up at any point in this conversation");
+  });
+
+  it("includes the confluence_links argument's value in the instructions when given", async () => {
+    const result = await documentAreaPrompt.handler({ confluence_links: "https://x/pages/1" });
+    const text = result.messages[0].content.text;
+    expect(text).toContain("https://x/pages/1");
   });
 
   it("tells the agent to ask dynamic, code-derived questions rather than a fixed checklist", async () => {

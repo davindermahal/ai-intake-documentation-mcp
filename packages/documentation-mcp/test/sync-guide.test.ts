@@ -14,8 +14,8 @@ const updateCalls: Array<{ pageId: string; storageBody: string }> = [];
 const attachmentCalls: Array<{ pageId: string; filename: string; content: string }> = [];
 let attachmentShouldFail = false;
 
-vi.mock("../src/confluence/client.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/confluence/client.js")>();
+vi.mock("@davindermahal/confluence-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@davindermahal/confluence-client")>();
   return {
     ...actual,
     ConfluenceClient: class {

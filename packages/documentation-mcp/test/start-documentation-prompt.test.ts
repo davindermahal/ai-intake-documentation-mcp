@@ -6,6 +6,10 @@ describe("start_documentation prompt", () => {
     expect(startDocumentationPrompt.argsSchema.safeParse({}).success).toBe(true);
   });
 
+  it("takes an optional confluence_links argument", () => {
+    expect(startDocumentationPrompt.argsSchema.safeParse({ confluence_links: "https://x/pages/1" }).success).toBe(true);
+  });
+
   it("walks the agent through detect -> drift check -> scan -> ask -> record -> write", async () => {
     const result = await startDocumentationPrompt.handler();
     const text = result.messages[0].content.text;
@@ -37,5 +41,18 @@ describe("start_documentation prompt", () => {
     const result = await startDocumentationPrompt.handler();
     const text = result.messages[0].content.text;
     expect(text.toLowerCase()).toContain("don't");
+  });
+
+  it("tells the agent to fetch named Confluence links and cite them as existing-docs evidence", async () => {
+    const result = await startDocumentationPrompt.handler();
+    const text = result.messages[0].content.text;
+    expect(text).toContain("fetch_confluence_pages");
+    expect(text).toContain('source: "existing-docs"');
+  });
+
+  it("includes the confluence_links argument's value in the instructions when given", async () => {
+    const result = await startDocumentationPrompt.handler({ confluence_links: "https://x/pages/1" });
+    const text = result.messages[0].content.text;
+    expect(text).toContain("https://x/pages/1");
   });
 });

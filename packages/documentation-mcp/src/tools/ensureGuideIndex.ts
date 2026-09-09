@@ -1,6 +1,6 @@
 import * as z from "zod";
-import { loadConfluenceConfig, resolveConfluenceAuth, writeConfigValue } from "../config.js";
-import { ConfluenceClient, extractPageId } from "../confluence/client.js";
+import { ConfluenceClient, extractPageIdFromUrl, loadConfluenceConfig, resolveConfluenceAuth } from "@davindermahal/confluence-client";
+import { loadLocalConfluenceConfig, writeConfigValue } from "../config.js";
 import { serializeIndexTable } from "../confluence/index-table.js";
 
 function notConfiguredError() {
@@ -36,23 +36,23 @@ export const ensureGuideIndexTool = {
     title: z.string().optional().describe("Title for a newly created index page. Defaults to 'AI Agent Guides'."),
   }),
   handler: async ({ title }: { title?: string }) => {
-    const config = loadConfluenceConfig();
-    const auth = resolveConfluenceAuth(config);
+    const auth = resolveConfluenceAuth(loadConfluenceConfig());
     if (!auth) return notConfiguredError();
+    const localConfig = loadLocalConfluenceConfig();
 
     const client = new ConfluenceClient(auth);
 
-    if (config.confluenceGuideIndexUrl) {
-      const pageId = extractPageId(config.confluenceGuideIndexUrl);
+    if (localConfig.confluenceGuideIndexUrl) {
+      const pageId = extractPageIdFromUrl(localConfig.confluenceGuideIndexUrl);
       const page = pageId ? await client.getPageById(pageId) : null;
       if (page) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ status: "conformant", url: config.confluenceGuideIndexUrl }, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify({ status: "conformant", url: localConfig.confluenceGuideIndexUrl }, null, 2) }],
         };
       }
     }
 
-    if (!config.confluenceSpaceKey) {
+    if (!localConfig.confluenceSpaceKey) {
       return {
         content: [
           {
@@ -65,7 +65,7 @@ export const ensureGuideIndexTool = {
     }
 
     const page = await client.createPage({
-      spaceKey: config.confluenceSpaceKey,
+      spaceKey: localConfig.confluenceSpaceKey,
       title: title ?? "AI Agent Guides",
       storageBody: serializeIndexTable([]),
     });

@@ -98,6 +98,9 @@ local client first).
   more natural here, since `document_area`'s whole design already prioritizes reading real code over
   any secondary source (its step 3 explicitly says "build a real understanding... rather than
   skimming for a summary").
+- The same step also triggers on a Confluence link the user mentions mid-conversation, not only on
+  the `confluence_links` argument — no separate scanning mechanism, just an instruction that the
+  tool exists and applies whenever a relevant link surfaces (Key decision #5).
 - Each fetched page becomes a `record_evidence` call: `source: "existing-docs"` (already the
   exact-fit enum value for "content found in a pre-existing doc outside this evidence-authoring
   flow" — no `context-schema` change needed), `content` prefixed with the page's URL and
@@ -135,27 +138,64 @@ follow-up, once this package has shipped and had at least one real consumer prov
 `confluence-references-in-planning.md` Key decision #3's "deferred, not blocked on" framing, from
 the other side.
 
+**Note for `ai-intake-mcp`'s later migration** (captured here now since that repo is mid-implementation
+of `confluence-references-in-planning.md` as of 2026-09-08, and its own plan can't yet reference a
+package that doesn't exist): per open question #2's resolution, the shared `ConfluenceClient` takes a
+resolved-triple constructor, not `ai-intake-mcp`'s current `{config: GlobalConfig, fetchImpl?,
+sleepImpl?}` shape. Its one call site (`src/index.ts:46`,
+`new ConfluenceClient({ config: getConfig() })`) will need to become
+`new ConfluenceClient(resolveConfluenceAuth(getConfig()))` (importing both `ConfluenceClient` and
+`resolveConfluenceAuth` from `@davindermahal/confluence-client` instead of its local
+`src/confluence/client.ts` and `src/config.ts`) — a one-line change, not a rewrite. `sleepImpl`
+passes through unchanged if `ai-intake-mcp` is injecting it in tests.
+
 ### 4. Citation reuses `record_evidence`'s existing `source: "existing-docs"` — no schema change
 
 `existing-docs` already means exactly "content found in a pre-existing doc outside this
 evidence-authoring flow" — a fetched Confluence page fits it precisely. No new evidence
 source/type value, no `context-schema` change, no migration for existing `.ai/evidence/` entries.
 
+### 5. `document_area`'s Confluence-link trigger is conversational, not scanned
+
+Unlike `plan_ticket` in `ai-intake-mcp`, which scans a Jira ticket's description/comments for URLs
+(structured data that already exists before the session starts), `document_area` has no equivalent
+input to scan — an "area" isn't a document with a body. So the trigger for `fetch_confluence_pages`
+isn't "the argument was passed" alone; the instructions also tell the agent to use the tool whenever
+the user names a relevant Confluence link at any point in the conversation, argument or not. This is
+deliberately lightweight — no keyword/URL detection logic, no re-scanning prior turns — just the same
+kind of judgment call the rest of `document_area`'s instructions already rely on (e.g. step 4's
+"ask specific, dynamic follow-up questions... not from a fixed checklist"). If a session produces no
+links at all, nothing changes from today's behavior.
+
 ## Open questions
 
-- [ ] Exact package name — `@davindermahal/confluence-client` assumed throughout this plan; confirm
-      before publishing (otherwise unreviewed).
-- [ ] Does `ai-intake-mcp`'s `ConfluenceClientOptions` (a `{config, fetchImpl?, sleepImpl?}` shape,
+- [x] Exact package name — `@davindermahal/confluence-client` assumed throughout this plan; confirm
+      before publishing (otherwise unreviewed). **Resolved 2026-09-08**: confirmed as-is —
+      `npm view @davindermahal/confluence-client` returns 404 (name is free), and it matches the
+      `@davindermahal/context-schema` scope/naming convention already established for this
+      monorepo's other published package.
+- [x] Does `ai-intake-mcp`'s `ConfluenceClientOptions` (a `{config, fetchImpl?, sleepImpl?}` shape,
       config-object-in) reconcile cleanly with this repo's (`{siteUrl, email, apiToken, fetchImpl?}`,
       resolved-triple-in) without either consumer needing an awkward adapter, or does the shared
-      package need a third constructor shape both wrap? Needs the two actual call sites compared
-      side by side before Implementation step 1, not just the reading already done for this plan.
-- [ ] Should `document_area`'s new step run even when no `confluence_links` argument was given, but
+      package need a third constructor shape both wrap? **Resolved 2026-09-08**: single constructor,
+      resolved-triple-in — `{siteUrl, email, apiToken, fetchImpl?, sleepImpl?}` (this repo's shape,
+      plus `sleepImpl` for Key decision #2's adopted retry logic). Rejected a union/dispatcher
+      constructor accepting either shape: that would make the shared package's constructor
+      understand `ai-intake-mcp`-specific config types (`GlobalConfig` bundles unrelated Jira
+      fields), which is exactly the product-specific coupling Key decision #1 rules out. Instead,
+      reconciliation happens one level up, via the `resolveConfluenceAuth` export Design #1 already
+      plans: each consumer resolves its own raw config down to the triple, then constructs the
+      client with it — a one-line change at each call site, not a package-level adapter. See Key
+      decision #3 for exactly what this means for `ai-intake-mcp`'s (separate, later) migration.
+- [x] Should `document_area`'s new step run even when no `confluence_links` argument was given, but
       the operator mentions a link mid-conversation instead? `plan_ticket`'s ticket-scanning path
       exists because a Jira ticket is structured data the agent can scan; `document_area` has no
       equivalent structured input to scan when the argument's absent. Probably just "the
       instructions mention the tool exists, use it if the conversation surfaces a relevant link" —
       worth confirming that doesn't need a more explicit trigger before Implementation step 4.
+      **Resolved 2026-09-08**: yes, conversational mention triggers it too, confirmed as the
+      instructions-mention-it-exists approach with no separate scanning mechanism. See Key
+      decision #5.
 
 ## Implementation steps (draft)
 

@@ -1,33 +1,46 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConfluenceApiError, ConfluenceClient, extractPageId } from "../src/confluence/client.js";
+import { ConfluenceApiError, ConfluenceClient, extractPageIdFromUrl, fetchPageByUrl } from "../src/client.js";
 
-function fakeResponse(status: number, body: unknown): Response {
+function fakeResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
     statusText: status === 200 ? "OK" : "Error",
+    headers: { get: (name: string) => headers[name] ?? null },
     json: async () => body,
     text: async () => JSON.stringify(body),
   } as unknown as Response;
 }
 
-describe("extractPageId", () => {
+const options = { siteUrl: "https://example.atlassian.net", email: "a@b.com", apiToken: "tok" };
+
+function noSleepClient(fetchImpl: typeof fetch): { client: ConfluenceClient; sleeps: number[] } {
+  const sleeps: number[] = [];
+  const client = new ConfluenceClient({
+    ...options,
+    fetchImpl,
+    sleepImpl: async (ms) => {
+      sleeps.push(ms);
+    },
+  });
+  return { client, sleeps };
+}
+
+describe("extractPageIdFromUrl", () => {
   it("extracts the id from a Confluence Cloud page URL", () => {
-    expect(extractPageId("https://example.atlassian.net/wiki/spaces/ENG/pages/12345678/Guide")).toBe("12345678");
+    expect(extractPageIdFromUrl("https://example.atlassian.net/wiki/spaces/ENG/pages/12345678/Guide")).toBe("12345678");
   });
 
   it("extracts the id from a legacy ?pageId= URL", () => {
-    expect(extractPageId("https://example.atlassian.net/wiki/pages/viewpage.action?pageId=999")).toBe("999");
+    expect(extractPageIdFromUrl("https://example.atlassian.net/wiki/pages/viewpage.action?pageId=999")).toBe("999");
   });
 
-  it("returns null when no id is present", () => {
-    expect(extractPageId("https://example.atlassian.net/wiki/spaces/ENG/overview")).toBeNull();
+  it("returns undefined when no id is present", () => {
+    expect(extractPageIdFromUrl("https://example.atlassian.net/wiki/spaces/ENG/overview")).toBeUndefined();
   });
 });
 
 describe("ConfluenceClient", () => {
-  const options = { siteUrl: "https://example.atlassian.net", email: "a@b.com", apiToken: "tok" };
-
   it("sends a Basic auth header derived from email:apiToken", async () => {
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
       const headers = init?.headers as Record<string, string>;
@@ -45,10 +58,19 @@ describe("ConfluenceClient", () => {
     expect(await client.getPageById("1")).toBeNull();
   });
 
-  it("throws ConfluenceApiError on a non-404 error status", async () => {
-    const fetchImpl = vi.fn(async () => fakeResponse(500, { message: "boom" }));
+  it("throws ConfluenceApiError on a non-retryable, non-404 error status", async () => {
+    const fetchImpl = vi.fn(async () => fakeResponse(400, { message: "bad request" }));
     const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
     await expect(client.getPageById("1")).rejects.toBeInstanceOf(ConfluenceApiError);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("getPageById surfaces lastModified from version.when", async () => {
+    const fetchImpl = vi.fn(async () =>
+      fakeResponse(200, { id: "1", title: "T", version: { number: 1, when: "2021-03-14T10:00:00.000Z" } }),
+    );
+    const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+    expect((await client.getPageById("1"))?.lastModified).toBe("2021-03-14T10:00:00.000Z");
   });
 
   it("createPage posts the expected body shape", async () => {
@@ -91,6 +113,47 @@ describe("ConfluenceClient", () => {
     const client = new ConfluenceClient({ siteUrl: "example.atlassian.net", email: "a@b.com", apiToken: "tok", fetchImpl: fetchImpl as unknown as typeof fetch });
     await client.getPageById("1");
     expect(fetchImpl).toHaveBeenCalled();
+  });
+
+  describe("retry/backoff", () => {
+    it("retries a 5xx with capped exponential backoff, then succeeds", async () => {
+      let calls = 0;
+      const fetchImpl = vi.fn(async () => {
+        calls++;
+        if (calls < 3) return fakeResponse(503, { message: "boom" });
+        return fakeResponse(200, { id: "1", title: "T", version: { number: 1 } });
+      });
+      const { client, sleeps } = noSleepClient(fetchImpl as unknown as typeof fetch);
+      await expect(client.getPageById("1")).resolves.not.toBeNull();
+      expect(calls).toBe(3);
+      expect(sleeps).toEqual([1000, 2000]);
+    });
+
+    it("honors a numeric Retry-After header on a 429", async () => {
+      let calls = 0;
+      const fetchImpl = vi.fn(async () => {
+        calls++;
+        if (calls < 2) return fakeResponse(429, { message: "slow down" }, { "Retry-After": "5" });
+        return fakeResponse(200, { id: "1", title: "T", version: { number: 1 } });
+      });
+      const { client, sleeps } = noSleepClient(fetchImpl as unknown as typeof fetch);
+      await client.getPageById("1");
+      expect(sleeps).toEqual([5000]);
+    });
+
+    it("gives up and throws after exhausting all retry attempts", async () => {
+      const fetchImpl = vi.fn(async () => fakeResponse(500, { message: "still failing" }));
+      const { client } = noSleepClient(fetchImpl as unknown as typeof fetch);
+      await expect(client.getPageById("1")).rejects.toBeInstanceOf(ConfluenceApiError);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not retry a non-retryable 4xx", async () => {
+      const fetchImpl = vi.fn(async () => fakeResponse(404, { message: "not found" }));
+      const { client } = noSleepClient(fetchImpl as unknown as typeof fetch);
+      await client.getPageById("1");
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("uploadAttachment", () => {
@@ -156,35 +219,62 @@ describe("ConfluenceClient", () => {
       expect(fetchImpl).toHaveBeenCalledTimes(2);
     });
 
-    it("does not retry after a first-attempt success", async () => {
-      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => (init?.method !== "POST" ? noExistingAttachment() : fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] })));
-      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
-      await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" });
-      expect(fetchImpl).toHaveBeenCalledTimes(2); // one lookup + one create, no retries
-    });
-
-    it("retries the whole lookup+upload sequence on failure and succeeds if a later attempt works", async () => {
+    it("retries a transient 5xx on the upload POST itself, without re-doing the lookup", async () => {
       let postAttempts = 0;
-      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const { client, sleeps } = noSleepClient(vi.fn(async (_url: string, init?: RequestInit) => {
         if (init?.method !== "POST") return noExistingAttachment();
         postAttempts++;
-        if (postAttempts < 3) return fakeResponse(500, { message: "transient" });
+        if (postAttempts < 3) return fakeResponse(503, { message: "transient" });
         return fakeResponse(200, { results: [{ id: "att-1", title: "source.md" }] });
-      });
-      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+      }) as unknown as typeof fetch);
       const result = await client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" });
       expect(result).toEqual({ id: "att-1", title: "source.md" });
       expect(postAttempts).toBe(3);
-      expect(fetchImpl).toHaveBeenCalledTimes(6); // 3 attempts, each with its own lookup + post
+      expect(sleeps).toEqual([1000, 2000]);
     });
 
-    it("gives up and throws after exhausting all retry attempts", async () => {
-      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => (init?.method !== "POST" ? noExistingAttachment() : fakeResponse(500, { message: "still failing" })));
-      const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+    it("gives up and throws after exhausting retries on the upload POST", async () => {
+      const { client } = noSleepClient(vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method !== "POST" ? noExistingAttachment() : fakeResponse(500, { message: "still failing" }),
+      ) as unknown as typeof fetch);
       await expect(
-        client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" })
+        client.uploadAttachment({ pageId: "20", filename: "source.md", content: "c", mimeType: "text/markdown" }),
       ).rejects.toBeInstanceOf(ConfluenceApiError);
-      expect(fetchImpl).toHaveBeenCalledTimes(6);
     });
+  });
+});
+
+describe("fetchPageByUrl", () => {
+  it("fetches the page by its extracted ID with body.storage and version expanded", async () => {
+    let seenUrl: string | undefined;
+    const fetchImpl = vi.fn(async (url: string) => {
+      seenUrl = url;
+      return fakeResponse(200, {
+        id: "12345",
+        title: "Symfony 4→5 Upgrade",
+        body: { storage: { value: "<p>x</p>" } },
+        version: { number: 1, when: "2021-03-14T10:00:00.000Z" },
+      });
+    });
+    const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+    const page = await fetchPageByUrl(client, "https://example.atlassian.net/wiki/spaces/ENG/pages/12345/Symfony");
+    expect(seenUrl).toBe("https://example.atlassian.net/wiki/rest/api/content/12345?expand=body.storage,version");
+    expect(page.title).toBe("Symfony 4→5 Upgrade");
+    expect(page.lastModified).toBe("2021-03-14T10:00:00.000Z");
+  });
+
+  it("throws when the URL has no extractable page ID", async () => {
+    const client = new ConfluenceClient({ ...options, fetchImpl: vi.fn() as unknown as typeof fetch });
+    await expect(fetchPageByUrl(client, "https://example.atlassian.net/wiki/overview")).rejects.toThrow(
+      /Could not extract a Confluence page ID/,
+    );
+  });
+
+  it("throws when the page doesn't exist", async () => {
+    const fetchImpl = vi.fn(async () => fakeResponse(404, { message: "not found" }));
+    const client = new ConfluenceClient({ ...options, fetchImpl: fetchImpl as unknown as typeof fetch });
+    await expect(fetchPageByUrl(client, "https://example.atlassian.net/wiki/pages/999")).rejects.toThrow(
+      /Confluence page not found/,
+    );
   });
 });

@@ -1,8 +1,8 @@
 /**
- * Minimal markdown -> Confluence storage-format (XHTML-ish) converter (Key decision #5 of the
- * Confluence guide-authoring plan). Covers exactly what guides need: headings, unordered/ordered
- * lists, fenced code blocks, and plain paragraphs — not general CommonMark. Anything else (bold,
- * links, inline code, tables outside the index) passes through as escaped paragraph text.
+ * Minimal markdown -> Confluence storage-format (XHTML-ish) converter. Covers exactly what guides
+ * need: headings, unordered/ordered lists, fenced code blocks, and plain paragraphs — not general
+ * CommonMark. Anything else (bold, links, inline code, tables) passes through as escaped paragraph
+ * text.
  */
 
 function escapeHtml(s: string): string {

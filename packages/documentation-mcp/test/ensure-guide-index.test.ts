@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { textOf } from "./helpers.js";
 
-vi.mock("../src/confluence/client.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/confluence/client.js")>();
+vi.mock("@davindermahal/confluence-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@davindermahal/confluence-client")>();
   return {
     ...actual,
     ConfluenceClient: class {

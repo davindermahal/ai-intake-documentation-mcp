@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownToStorage } from "../src/confluence/markdown-to-storage.js";
+import { markdownToStorage } from "../src/markdown-to-storage.js";
 
 describe("markdownToStorage", () => {
   it("converts headings", () => {
