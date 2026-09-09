@@ -140,6 +140,37 @@ calling `record_evidence` during implementation — is tracked as future work, n
   lifecycle (including the collision-suffix case).
 - CI (`.github/workflows/ci.yml`) runs `npm run build` + `npm test` on push/PR to `main`.
 
+### Releasing to npm
+
+Publishing is **not** automatic on merge to `main` — it only happens when a release tag is pushed,
+and bumping the version is a deliberate manual step (this repo's `.ai/plans/` convention is to only
+cut a release once the relevant plan is `Status: complete, verdict GO`).
+
+To release a package (e.g. `documentation-mcp`):
+
+1. Bump `"version"` in `packages/<package-dir>/package.json` and commit it.
+2. Tag that commit `<package-dir>@<semver>` (must match the version you just set) and push the tag:
+   ```bash
+   git tag -a documentation-mcp@0.5.0 -m "documentation-mcp 0.5.0"
+   git push origin documentation-mcp@0.5.0
+   ```
+
+Pushing a tag matching `*@*` triggers `.github/workflows/release.yml`, which:
+
+1. Parses `<package-dir>@<semver>` from the tag and confirms `packages/<package-dir>/package.json`
+   exists.
+2. Verifies the tag's version matches that package's `package.json` version at that commit.
+3. Confirms the target package isn't `private` and the repo root still is (root `package.json` is
+   `"private": true` so the monorepo itself can never be published).
+4. Builds `confluence-client` → `context-schema` → `documentation-mcp` in that explicit dependency
+   order (not `--workspaces`' alphabetical order — `documentation-mcp` needs `confluence-client`'s
+   compiled types).
+5. Runs `npm test`.
+6. Publishes with `npm publish --workspace packages/<package-dir>`, authenticating via OIDC trusted
+   publishing (`id-token: write` permission — no `NPM_TOKEN` secret). This requires a one-time
+   Trusted Publisher entry on the package's npmjs.com settings page naming this exact repo + this
+   exact workflow filename.
+
 ## License
 
 [MIT](LICENSE)
